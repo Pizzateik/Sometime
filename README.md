@@ -65,13 +65,11 @@ Use Spaces for separate parts of life or work. Choose light, dark, or soft appea
 
 ## Download
 
-Sometime has no public release yet. Android APKs will be available through [GitHub Releases](https://github.com/Pizzateik/Sometime/releases).
-
-<!-- Enable this link after the first release is published.
 <p align="center">
-  <a href="https://github.com/Pizzateik/Sometime/releases/latest"><strong>Download the latest APK</strong></a>
+  <a href="https://github.com/Pizzateik/Sometime/releases/latest"><strong>Download the latest Android beta</strong></a>
 </p>
--->
+
+The APK is distributed through [GitHub Releases](https://github.com/Pizzateik/Sometime/releases). GitHub marks beta builds as prereleases.
 
 ## Requirements
 
@@ -108,7 +106,7 @@ Production signing credentials are not included. Debug builds do not need them.
 
 ## Status
 
-Sometime is being prepared for its first Android release. No APK or store listing is available yet.
+Sometime is in beta for Android. No store listing is available yet.
 
 ## Contributing
 
