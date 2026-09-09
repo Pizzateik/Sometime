@@ -1,0 +1,9 @@
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_divider"
+    android:layout_width="match_parent"
+    android:layout_height="4dp"
+    android:importantForAccessibility="no"
+    android:paddingTop="1dp"
+    android:paddingBottom="1dp"
+    android:scaleType="fitXY"
+    android:src="@drawable/widget_divider_light" />

@@ -1,0 +1,20 @@
+<resources>
+    <string name="widget_open_space">%1$sを開く</string>
+    <string name="widget_create_task">タスクを作成</string>
+    <string name="widget_today">今日</string>
+    <string name="widget_soon">すぐに</string>
+    <string name="widget_someday">いつか</string>
+    <string name="widget_complete_task">タスクを完了: %1$s</string>
+    <string name="widget_open_first">先にSometimeを開いてください</string>
+    <string name="widget_nothing_here">まだ何もありません</string>
+    <string name="widget_space">Space</string>
+    <string name="widget_select_space">Spaceを選択</string>
+    <string name="widget_category">カテゴリー</string>
+    <string name="widget_select_category">カテゴリーを選択</string>
+    <string name="widget_add">ウィジェットを追加</string>
+    <string name="widget_configuration_first">先にSometimeを開いてください。</string>
+    <string name="widget_category_today">今日</string>
+    <string name="widget_category_soon">すぐに</string>
+    <string name="widget_category_someday">いつか</string>
+    <string name="widget_category_all">すべて</string>
+</resources>

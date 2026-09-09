@@ -1,0 +1,9 @@
+<resources>
+    <color name="widget_preview_background">#121212</color>
+    <color name="widget_preview_ink">#FFFFFF</color>
+    <color name="widget_preview_text">#EFEFEA</color>
+    <color name="widget_preview_secondary">#A9AAA4</color>
+    <color name="widget_preview_outline">#777A73</color>
+    <color name="widget_preview_primary">#FFFFFF</color>
+    <color name="widget_preview_on_primary">#000000</color>
+</resources>

@@ -1,0 +1,20 @@
+<resources>
+    <string name="widget_open_space">Open %1$s</string>
+    <string name="widget_create_task">Create task</string>
+    <string name="widget_today">TODAY</string>
+    <string name="widget_soon">SOON</string>
+    <string name="widget_someday">SOMETIME</string>
+    <string name="widget_complete_task">Complete task: %1$s</string>
+    <string name="widget_open_first">Open Sometime first</string>
+    <string name="widget_nothing_here">Nothing here yet</string>
+    <string name="widget_space">Space</string>
+    <string name="widget_select_space">Select space</string>
+    <string name="widget_category">Category</string>
+    <string name="widget_select_category">Select category</string>
+    <string name="widget_add">Add Widget</string>
+    <string name="widget_configuration_first">Open Sometime first.</string>
+    <string name="widget_category_today">Today</string>
+    <string name="widget_category_soon">Soon</string>
+    <string name="widget_category_someday">Sometime</string>
+    <string name="widget_category_all">All</string>
+</resources>

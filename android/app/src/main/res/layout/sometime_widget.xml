@@ -1,0 +1,59 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <ImageView
+        android:id="@+id/widget_surface"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_white" />
+    <LinearLayout
+        android:id="@+id/widget_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
+        <TextView
+            android:id="@+id/widget_brand"
+            android:layout_width="match_parent"
+            android:layout_height="26dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/geist"
+            android:gravity="center_vertical"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="Sometime"
+            android:textFontWeight="650"
+            android:textSize="16sp" />
+        <LinearLayout
+            android:id="@+id/widget_rows"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical" />
+        <FrameLayout
+            android:id="@+id/widget_plus_row"
+            android:layout_width="match_parent"
+            android:layout_height="42dp">
+            <FrameLayout
+                android:id="@+id/widget_plus"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="bottom|end">
+                <ImageView
+                    android:id="@+id/widget_plus_surface"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_plus_light" />
+                <ImageView
+                    android:id="@+id/widget_plus_icon"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:padding="10dp"
+                    android:src="@drawable/widget_plus_icon" />
+            </FrameLayout>
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>

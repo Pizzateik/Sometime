@@ -1,0 +1,58 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_task"
+    android:layout_width="match_parent"
+    android:layout_height="52dp"
+    android:orientation="horizontal">
+    <ImageView
+        android:id="@+id/widget_complete"
+        android:layout_width="36dp"
+        android:layout_height="28dp"
+        android:scaleType="center"
+        android:src="@drawable/widget_completion_light" />
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="28dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/widget_title"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="@font/geist"
+                android:gravity="center_vertical"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textFontWeight="550"
+                android:textSize="13sp" />
+            <TextView
+                android:id="@+id/widget_time"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:fontFamily="@font/geist"
+                android:gravity="center_vertical"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:paddingStart="6dp"
+                android:textFontWeight="500"
+                android:textSize="11sp" />
+        </LinearLayout>
+        <TextView
+            android:id="@+id/widget_description"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/geist"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:paddingTop="2dp"
+            android:textFontWeight="450"
+            android:textSize="11sp" />
+    </LinearLayout>
+</LinearLayout>

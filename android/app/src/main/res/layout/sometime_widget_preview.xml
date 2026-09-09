@@ -1,0 +1,115 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="280dp"
+    android:layout_height="250dp">
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_preview_surface" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:fontFamily="@font/geist"
+            android:gravity="center_vertical"
+            android:includeFontPadding="false"
+            android:text="Sometime"
+            android:textColor="@color/widget_preview_ink"
+            android:textFontWeight="650"
+            android:textSize="16sp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="22dp"
+            android:fontFamily="@font/geist"
+            android:gravity="center_vertical"
+            android:includeFontPadding="false"
+            android:text="TODAY"
+            android:textColor="@color/widget_preview_secondary"
+            android:textFontWeight="650"
+            android:textSize="10sp" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:orientation="horizontal">
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="28dp"
+                android:scaleType="center"
+                android:src="@drawable/widget_preview_completion" />
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="28dp"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/geist"
+                    android:gravity="center_vertical"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="Plan the week"
+                    android:textColor="@color/widget_preview_text"
+                    android:textFontWeight="550"
+                    android:textSize="13sp" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="24dp"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/geist"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:paddingTop="2dp"
+                    android:text="Choose three priorities"
+                    android:textColor="@color/widget_preview_secondary"
+                    android:textFontWeight="450"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:scaleType="center"
+                android:src="@drawable/widget_preview_completion" />
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:fontFamily="@font/geist"
+                android:gravity="center_vertical"
+                android:includeFontPadding="false"
+                android:text="Call Sam"
+                android:textColor="@color/widget_preview_text"
+                android:textFontWeight="550"
+                android:textSize="13sp" />
+        </LinearLayout>
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+        <FrameLayout
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="end">
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/widget_preview_plus" />
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="10dp"
+                android:src="@drawable/widget_preview_plus_icon" />
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>

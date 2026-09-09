@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:statusBarColor">@color/app_background</item>
+        <item name="android:navigationBarColor">@color/app_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@color/app_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+    <style name="SometimeWidgetConfigurationTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">@font/geist</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">#FAFAF8</item>
+        <item name="android:colorAccent">#000000</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>
