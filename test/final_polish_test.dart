@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:todo_app/app/app_config.dart';
 import 'package:todo_app/app/app_theme.dart';
 import 'package:todo_app/app/sometime_icons.dart';
 import 'package:todo_app/widgets/add_todo_button.dart';
@@ -73,6 +74,25 @@ void main() {
 
     expect(find.text('Become a Supporter'), findsOneWidget);
     expect(find.text('Restore Purchases'), findsOneWidget);
+  });
+
+  testWidgets('About shows the Sometime source repository', (tester) async {
+    await startApp(tester, MemoryTodoStorage(), locale: const Locale('en'));
+    await showSettings(tester);
+    final sourceCode = find.text('Source Code');
+    await tester.scrollUntilVisible(
+      sourceCode,
+      300,
+      scrollable: find.descendant(
+        of: find.byKey(const PageStorageKey('settings-scroll')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(AppConfig.sourceCodeUrl, 'https://github.com/Pizzateik/Sometime');
+    expect(sourceCode, findsOneWidget);
+    expect(control('Source Code, external link'), findsOneWidget);
   });
 
   testWidgets('Create keeps the floating button size and position', (

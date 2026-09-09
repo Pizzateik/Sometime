@@ -6,9 +6,9 @@ abstract final class AppConfig {
   // Set to true to restore the production Supporter purchase flow.
   static const enableSupporterPurchases = false;
 
-  // Set these values before release. Empty links do not appear as actions.
+  // Empty links do not appear as actions.
   static const portfolioUrl = '';
-  static const sourceCodeUrl = '';
+  static const sourceCodeUrl = 'https://github.com/Pizzateik/Sometime';
 
   // Keep this empty until the final public policy URL exists.
   static const privacyPolicyUrl = '';
