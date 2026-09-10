@@ -114,18 +114,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               Text(
                                 strings.welcomeToSometime,
                                 textAlign: TextAlign.center,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium,
+                                style: context.appTypography.display,
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 strings.onboardingNameQuestion,
                                 textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyLarge
-                                    ?.copyWith(
-                                      color: context.appColors.secondary,
-                                    ),
+                                style: context.appTypography.secondary,
                               ),
                             ],
                           ),
@@ -226,8 +221,7 @@ class _OnboardingButton extends StatelessWidget {
         child: AnimatedDefaultTextStyle(
           duration: AppMotion.duration(context, AppMotion.color),
           curve: AppMotion.curve,
-          style: Theme.of(context).textTheme.labelLarge!
-              .copyWith(color: foreground, fontWeight: FontWeight.w600),
+          style: context.appTypography.buttonLabel.copyWith(color: foreground),
           child: Text(label, textAlign: TextAlign.center),
         ),
       ),

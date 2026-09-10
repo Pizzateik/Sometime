@@ -65,8 +65,9 @@ class TodoSection extends StatelessWidget {
                   header: true,
                   child: Text(
                     context.strings.groupName(group.index),
-                    style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontSize: 18, fontWeight: FontWeight.w500),
+                    style: context.appTypography.sectionTitle.copyWith(
+                      fontSize: 18,
+                    ),
                   ),
                 ),
               ),
@@ -74,8 +75,7 @@ class TodoSection extends StatelessWidget {
                 Text(
                   trailing!,
                   key: const ValueKey('today-date'),
-                  style: Theme.of(context).textTheme.labelLarge
-                      ?.copyWith(color: context.appColors.secondary),
+                  style: context.appTypography.metadata.copyWith(fontSize: 13),
                 ),
             ],
           ),

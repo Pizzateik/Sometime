@@ -113,6 +113,522 @@ void main() {
     );
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
+  testWidgets('A task moves after a 1050ms Space dwell and drop', (
+    tester,
+  ) async {
+    final storage = MemoryTodoStorage(
+      snapshot: TodoSnapshot(
+        spaces: [
+          TodoSpace(
+            id: 'source',
+            name: 'Source',
+            todos: [
+              Todo(
+                id: 'task',
+                title: 'Move me',
+                group: TodoGroup.today,
+                createdAt: DateTime(2026, 9, 4, 10),
+              ),
+            ],
+          ),
+          const TodoSpace(id: 'target', name: 'Target', todos: []),
+        ],
+        archive: const [],
+        lastKnownLocalDate: DateTime(2026, 9, 4),
+      ),
+    );
+    await startApp(tester, storage, reduceMotion: true);
+
+    final indicator = find.byKey(const ValueKey('space-dwell-indicator-1'));
+    expect(tester.widget<AnimatedOpacity>(indicator).opacity, 0);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Move me')),
+    );
+    await tester.pump(const Duration(milliseconds: 381));
+    await gesture.moveTo(tester.getCenter(find.text('Target')));
+    await tester.pump();
+    expect(tester.widget<AnimatedOpacity>(indicator).opacity, 1);
+    expect(
+      find.byKey(const ValueKey('space-switch-border-task')),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(milliseconds: 1000));
+    expect(storage.snapshot!.spaces.first.todos.single.id, 'task');
+    expect(storage.snapshot!.spaces.last.todos, isEmpty);
+
+    await tester.pump(const Duration(milliseconds: 400));
+    final pager = tester
+        .widget<PageView>(find.byKey(const ValueKey('main-space-pager')))
+        .controller!;
+    expect(pager.page, closeTo(1, 0.01));
+    expect(storage.snapshot!.spaces.first.todos.single.id, 'task');
+    expect(storage.snapshot!.spaces.last.todos, isEmpty);
+    expect(tester.widget<AnimatedOpacity>(indicator).opacity, 0);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('space-switch-border-task')),
+      findsNothing,
+    );
+    await gesture.moveTo(
+      tester.getCenter(find.text('Heute')) + const Offset(0, 48),
+    );
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(storage.snapshot!.spaces.first.todos, isEmpty);
+    expect(storage.snapshot!.spaces.last.todos.single.title, 'Move me');
+  });
+
+  testWidgets('Leaving a Space before 1050ms cancels its dwell', (
+    tester,
+  ) async {
+    final storage = MemoryTodoStorage(
+      snapshot: TodoSnapshot(
+        spaces: [
+          TodoSpace(
+            id: 'source',
+            name: 'Source',
+            todos: [
+              Todo(
+                id: 'task',
+                title: 'Keep me',
+                group: TodoGroup.today,
+                createdAt: DateTime(2026, 9, 4, 10),
+              ),
+            ],
+          ),
+          const TodoSpace(id: 'target', name: 'Target', todos: []),
+        ],
+        archive: const [],
+        lastKnownLocalDate: DateTime(2026, 9, 4),
+      ),
+    );
+    await startApp(tester, storage, reduceMotion: true);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Keep me')),
+    );
+    await tester.pump(const Duration(milliseconds: 381));
+    await gesture.moveTo(tester.getCenter(find.text('Target')));
+    final indicator = find.byKey(const ValueKey('space-dwell-indicator-1'));
+    await tester.pump();
+    expect(tester.widget<AnimatedOpacity>(indicator).opacity, 1);
+    await tester.pump(const Duration(seconds: 1));
+    await gesture.moveTo(const Offset(100, 200));
+    await tester.pump();
+    expect(tester.widget<AnimatedOpacity>(indicator).opacity, 0);
+    expect(
+      find.byKey(const ValueKey('space-switch-border-task')),
+      findsNothing,
+    );
+    await tester.pump(const Duration(seconds: 2));
+    await gesture.cancel();
+    await tester.pumpAndSettle();
+
+    expect(storage.snapshot!.spaces.first.todos.single.id, 'task');
+    expect(storage.snapshot!.spaces.last.todos, isEmpty);
+  });
+
+  testWidgets('Canceling after a preview switch keeps the source task', (
+    tester,
+  ) async {
+    final storage = MemoryTodoStorage(
+      snapshot: TodoSnapshot(
+        spaces: [
+          TodoSpace(
+            id: 'source',
+            name: 'Source',
+            todos: [
+              Todo(
+                id: 'task',
+                title: 'Cancel me',
+                group: TodoGroup.soon,
+                createdAt: DateTime(2026, 9, 4, 10),
+              ),
+            ],
+          ),
+          const TodoSpace(id: 'target', name: 'Target', todos: []),
+        ],
+        archive: const [],
+        lastKnownLocalDate: DateTime(2026, 9, 4),
+      ),
+    );
+    await startApp(tester, storage, reduceMotion: true);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Cancel me')),
+    );
+    await tester.pump(const Duration(milliseconds: 381));
+    await gesture.moveTo(tester.getCenter(find.text('Target')));
+    await tester.pump(const Duration(milliseconds: 1101));
+    await gesture.cancel();
+    await tester.pumpAndSettle();
+
+    expect(storage.snapshot!.spaces.first.todos.single.id, 'task');
+    expect(storage.snapshot!.spaces.last.todos, isEmpty);
+  });
+
+  testWidgets('Changing the Space hover target starts a new dwell', (
+    tester,
+  ) async {
+    final storage = MemoryTodoStorage(
+      snapshot: TodoSnapshot(
+        spaces: [
+          TodoSpace(
+            id: 'source',
+            name: 'Source',
+            todos: [
+              Todo(
+                id: 'task',
+                title: 'Switch me',
+                group: TodoGroup.today,
+                createdAt: DateTime(2026, 9, 4, 10),
+              ),
+            ],
+          ),
+          const TodoSpace(id: 'first', name: 'First', todos: []),
+          const TodoSpace(id: 'second', name: 'Second', todos: []),
+        ],
+        archive: const [],
+        lastKnownLocalDate: DateTime(2026, 9, 4),
+      ),
+    );
+    await startApp(tester, storage, reduceMotion: true);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Switch me')),
+    );
+    await tester.pump(const Duration(milliseconds: 381));
+    await gesture.moveTo(tester.getCenter(find.text('First')));
+    await tester.pump(const Duration(seconds: 1));
+    await gesture.moveTo(tester.getCenter(find.text('Second')));
+    await tester.pump(const Duration(milliseconds: 1000));
+    expect(storage.snapshot!.spaces.first.todos.single.id, 'task');
+    await tester.pump(const Duration(milliseconds: 400));
+    await gesture.moveTo(
+      tester.getCenter(find.text('Heute')) + const Offset(0, 48),
+    );
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(storage.snapshot!.spaces[0].todos, isEmpty);
+    expect(storage.snapshot!.spaces[1].todos, isEmpty);
+    expect(storage.snapshot!.spaces[2].todos.single.id, 'task');
+  });
+
+  testWidgets('A second pointer cannot switch Spaces during a task drag', (
+    tester,
+  ) async {
+    final storage = MemoryTodoStorage(
+      snapshot: TodoSnapshot(
+        spaces: [
+          TodoSpace(
+            id: 'source',
+            name: 'Source',
+            todos: [
+              Todo(
+                id: 'task',
+                title: 'One pointer',
+                group: TodoGroup.today,
+                createdAt: DateTime(2026, 9, 4, 10),
+              ),
+            ],
+          ),
+          const TodoSpace(id: 'target', name: 'Target', todos: []),
+        ],
+        archive: const [],
+        lastKnownLocalDate: DateTime(2026, 9, 4),
+      ),
+    );
+    await startApp(tester, storage, reduceMotion: true);
+
+    final drag = await tester.startGesture(
+      tester.getCenter(find.text('One pointer')),
+      pointer: 1,
+    );
+    await tester.pump(const Duration(milliseconds: 381));
+    await drag.moveBy(const Offset(0, 24));
+    await tester.pump();
+    final tap = await tester.startGesture(
+      tester.getCenter(find.text('Target')),
+      pointer: 2,
+    );
+    await tap.up();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final pager = tester.widget<PageView>(find.byType(PageView)).controller!;
+    expect(pager.page, closeTo(0, 0.01));
+    expect(storage.snapshot!.spaces.first.todos.single.id, 'task');
+    expect(storage.snapshot!.spaces.last.todos, isEmpty);
+    await drag.cancel();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('A release on the Space header does not move the task', (
+    tester,
+  ) async {
+    final storage = MemoryTodoStorage(
+      snapshot: TodoSnapshot(
+        spaces: [
+          TodoSpace(
+            id: 'source',
+            name: 'Source',
+            todos: [
+              Todo(
+                id: 'task',
+                title: 'Do not drop',
+                group: TodoGroup.today,
+                createdAt: DateTime(2026, 9, 4, 10),
+              ),
+            ],
+          ),
+          const TodoSpace(id: 'target', name: 'Target', todos: []),
+        ],
+        archive: const [],
+        lastKnownLocalDate: DateTime(2026, 9, 4),
+      ),
+    );
+    await startApp(tester, storage, reduceMotion: true);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Do not drop')),
+    );
+    await tester.pump(const Duration(milliseconds: 381));
+    await gesture.moveTo(tester.getCenter(find.text('Target')));
+    await tester.pump(const Duration(milliseconds: 1101));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(storage.snapshot!.spaces.first.todos.single.id, 'task');
+    expect(storage.snapshot!.spaces.last.todos, isEmpty);
+  });
+
+  testWidgets('A task can change category after a Space preview', (
+    tester,
+  ) async {
+    final storage = MemoryTodoStorage(
+      snapshot: TodoSnapshot(
+        spaces: [
+          TodoSpace(
+            id: 'source',
+            name: 'Source',
+            todos: [
+              Todo(
+                id: 'task',
+                title: 'Change category',
+                group: TodoGroup.today,
+                createdAt: DateTime(2026, 9, 4, 10),
+              ),
+            ],
+          ),
+          const TodoSpace(id: 'target', name: 'Target', todos: []),
+        ],
+        archive: const [],
+        lastKnownLocalDate: DateTime(2026, 9, 4),
+      ),
+    );
+    await startApp(tester, storage, reduceMotion: true);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Change category')),
+    );
+    await tester.pump(const Duration(milliseconds: 381));
+    await gesture.moveTo(tester.getCenter(find.text('Target')));
+    await tester.pump(const Duration(milliseconds: 1101));
+    await gesture.moveTo(
+      tester.getCenter(find.text('Demnächst')) + const Offset(0, 48),
+    );
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(storage.snapshot!.spaces.first.todos, isEmpty);
+    final moved = storage.snapshot!.spaces.last.todos.single;
+    expect(moved.id, 'task');
+    expect(moved.group, TodoGroup.soon);
+  });
+
+  testWidgets('One drag can preview two Spaces before the final drop', (
+    tester,
+  ) async {
+    final storage = MemoryTodoStorage(
+      snapshot: TodoSnapshot(
+        spaces: [
+          TodoSpace(
+            id: 'source',
+            name: 'Source',
+            todos: [
+              Todo(
+                id: 'task',
+                title: 'Keep holding',
+                group: TodoGroup.today,
+                createdAt: DateTime(2026, 9, 4, 10),
+              ),
+            ],
+          ),
+          const TodoSpace(id: 'first', name: 'First', todos: []),
+          const TodoSpace(id: 'second', name: 'Second', todos: []),
+        ],
+        archive: const [],
+        lastKnownLocalDate: DateTime(2026, 9, 4),
+      ),
+    );
+    await startApp(tester, storage, reduceMotion: true);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Keep holding')),
+    );
+    await tester.pump(const Duration(milliseconds: 381));
+    await gesture.moveTo(tester.getCenter(find.text('First')));
+    await tester.pump(const Duration(milliseconds: 1101));
+    await gesture.moveTo(tester.getCenter(find.text('Second')));
+    await tester.pump(const Duration(milliseconds: 1101));
+    await gesture.moveTo(
+      tester.getCenter(find.text('Heute')) + const Offset(0, 48),
+    );
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(storage.snapshot!.spaces[0].todos, isEmpty);
+    expect(storage.snapshot!.spaces[1].todos, isEmpty);
+    expect(storage.snapshot!.spaces[2].todos.single.id, 'task');
+  });
+
+  testWidgets('A destination list accepts an external insertion index', (
+    tester,
+  ) async {
+    final now = DateTime(2026, 9, 4, 10);
+    final storage = MemoryTodoStorage(
+      snapshot: TodoSnapshot(
+        spaces: [
+          TodoSpace(
+            id: 'source',
+            name: 'Source',
+            todos: [
+              Todo(
+                id: 'moving',
+                title: 'Insert me',
+                group: TodoGroup.today,
+                createdAt: now,
+              ),
+            ],
+          ),
+          TodoSpace(
+            id: 'target',
+            name: 'Target',
+            todos: [
+              Todo(
+                id: 'first',
+                title: 'Target first',
+                group: TodoGroup.today,
+                createdAt: now,
+                sortOrder: 0,
+              ),
+              Todo(
+                id: 'second',
+                title: 'Target second',
+                group: TodoGroup.today,
+                createdAt: now,
+                sortOrder: 1,
+              ),
+            ],
+          ),
+        ],
+        archive: const [],
+        lastKnownLocalDate: now,
+      ),
+    );
+    await startApp(tester, storage, reduceMotion: true);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Insert me')),
+    );
+    await tester.pump(const Duration(milliseconds: 381));
+    await gesture.moveTo(tester.getCenter(find.text('Target')));
+    await tester.pump(const Duration(milliseconds: 1101));
+    final first = tester.getCenter(find.text('Target first'));
+    final second = tester.getCenter(find.text('Target second'));
+    await gesture.moveTo(Offset(first.dx, (first.dy + second.dy) / 2));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    final ordered =
+        storage.snapshot!.spaces.last.todos
+            .where((todo) => todo.group == TodoGroup.today)
+            .toList()
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    expect(ordered.map((todo) => todo.id), ['first', 'moving', 'second']);
+  });
+
+  testWidgets('A destination page auto-scrolls an external task drag', (
+    tester,
+  ) async {
+    final now = DateTime(2026, 9, 4, 10);
+    final storage = MemoryTodoStorage(
+      snapshot: TodoSnapshot(
+        spaces: [
+          TodoSpace(
+            id: 'source',
+            name: 'Source',
+            todos: [
+              Todo(
+                id: 'moving',
+                title: 'Scroll me',
+                group: TodoGroup.today,
+                createdAt: now,
+              ),
+            ],
+          ),
+          TodoSpace(
+            id: 'target',
+            name: 'Target',
+            todos: [
+              for (var index = 0; index < 24; index++)
+                Todo(
+                  id: 'target-$index',
+                  title: 'Target task $index',
+                  group: TodoGroup.today,
+                  createdAt: now,
+                  sortOrder: index,
+                ),
+            ],
+          ),
+        ],
+        archive: const [],
+        lastKnownLocalDate: now,
+      ),
+    );
+    await startApp(tester, storage, reduceMotion: true);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Scroll me')),
+    );
+    await tester.pump(const Duration(milliseconds: 381));
+    await gesture.moveTo(tester.getCenter(find.text('Target')));
+    await tester.pump(const Duration(milliseconds: 1101));
+    await gesture.moveTo(const Offset(150, 800));
+    await tester.pump();
+    final scroll = tester
+        .widget<CustomScrollView>(find.byType(CustomScrollView))
+        .controller!;
+    final before = scroll.offset;
+    for (var index = 0; index < 30; index++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(scroll.offset, greaterThan(before + 50));
+    await gesture.cancel();
+    await tester.pumpAndSettle();
+    expect(storage.snapshot!.spaces.first.todos.single.id, 'moving');
+    expect(
+      storage.snapshot!.spaces.last.todos.any((todo) => todo.id == 'moving'),
+      isFalse,
+    );
+  });
+
   testWidgets('Pin option is absent on iOS', (tester) async {
     await startApp(tester, MemoryTodoStorage(), reduceMotion: true);
     await tester.tap(control('Neue Aufgabe'));
@@ -120,7 +636,7 @@ void main() {
     expect(control('An Benachrichtigungen anpinnen'), findsNothing);
   }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 
-  test('Scheduled tasks sort first and moves keep their details', () async {
+  test('Manual order stays authoritative for scheduled tasks', () async {
     final storage = MemoryTodoStorage(todos: []);
     final controller = TodoController(
       storage: storage,
@@ -142,12 +658,12 @@ void main() {
     );
     expect(
       controller.activeTodos(space, TodoGroup.today).map((todo) => todo.id),
-      [dated, timed, first, second],
+      [first, second, timed, dated],
     );
-    controller.moveTodo(space, second, group: TodoGroup.today, index: 2);
+    controller.moveTodo(space, dated, group: TodoGroup.today, index: 0);
     expect(
       controller.activeTodos(space, TodoGroup.today).map((todo) => todo.id),
-      [dated, timed, second, first],
+      [dated, first, second, timed],
     );
     controller.moveTodo(space, dated, group: TodoGroup.soon, index: 0);
     expect(
@@ -155,6 +671,20 @@ void main() {
       'Details',
     );
     await controller.retrySave();
+    final restarted = TodoController(
+      storage: storage,
+      clock: () => DateTime(2026, 9, 9),
+    );
+    addTearDown(restarted.dispose);
+    await restarted.initialize();
+    expect(
+      restarted.activeTodos(space, TodoGroup.today).map((todo) => todo.id),
+      [first, second, timed],
+    );
+    expect(
+      restarted.activeTodos(space, TodoGroup.soon).map((todo) => todo.id),
+      [dated],
+    );
     final saved = LocalTodoStorage.decode(
       LocalTodoStorage.encode(storage.snapshot!),
     );

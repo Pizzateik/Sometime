@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:todo_app/app/todo_app.dart';
+import 'package:todo_app/models/app_settings.dart';
 import 'package:todo_app/models/theme_preference.dart';
 import 'package:todo_app/models/todo.dart';
+import 'package:todo_app/models/todo_space.dart';
 import 'package:todo_app/models/todo_storage.dart';
 import 'package:todo_app/widgets/pressable.dart';
+import 'package:todo_app/widgets/todo_section.dart';
 
 import 'test_helpers.dart';
 
@@ -95,5 +98,63 @@ void main() {
     await tester.tap(control('Erledigt'));
     await tester.pumpAndSettle();
     await waitForWidget(tester, find.text('Milch kaufen'));
+  });
+
+  testWidgets('One pointer moves a task through a Space dwell', (tester) async {
+    final now = DateTime.now();
+    final key = 'todos.drag.integration.${now.microsecondsSinceEpoch}';
+    final storage = LocalTodoStorage(key: key, themeKey: '$key.theme');
+    await storage.save(
+      TodoSnapshot(
+        spaces: [
+          TodoSpace(
+            id: 'source',
+            name: 'Dev',
+            todos: [
+              Todo(
+                id: 'drag-task',
+                title: 'Space drag task',
+                group: TodoGroup.today,
+                createdAt: now,
+              ),
+            ],
+          ),
+          const TodoSpace(id: 'target', name: 'Schule', todos: []),
+        ],
+        archive: const [],
+        lastKnownLocalDate: localCalendarDate(now),
+      ),
+    );
+    await storage.saveAppSettings(
+      const AppSettings(
+        hasCompletedOnboarding: true,
+        hasSeenFirstEmptyHomeHint: true,
+        hasSeenTaskEditTutorial: true,
+        hasSeenSpaceManagementTutorial: true,
+      ),
+    );
+    await tester.pumpWidget(TodoApp(storage: storage, themeStorage: storage));
+    await waitForWidget(tester, find.text('Space drag task'));
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Space drag task')),
+      pointer: 1,
+    );
+    await tester.pump(const Duration(milliseconds: 381));
+    await gesture.moveTo(tester.getCenter(find.text('Schule')));
+    await tester.pump(const Duration(milliseconds: 1101));
+    await tester.pump(const Duration(milliseconds: 400));
+    final today = find.byWidgetPredicate(
+      (widget) => widget is TodoSection && widget.group == TodoGroup.today,
+    );
+    await gesture.moveTo(tester.getTopLeft(today) + const Offset(100, 60));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    final saved = await storage.load();
+    expect(saved!.spaces.first.todos, isEmpty);
+    expect(saved.spaces.last.todos.single.id, 'drag-task');
+    expect(saved.spaces.last.todos.single.group, TodoGroup.today);
   });
 }

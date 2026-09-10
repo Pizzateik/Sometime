@@ -23,6 +23,8 @@ class TodoItem extends StatefulWidget {
     this.active = false,
     this.dragging = false,
     this.deleteHovered = false,
+    this.spaceSwitchArmed = false,
+    this.spaceSwitchProgress = 0,
     this.onActivate,
     this.onDeactivate,
     this.onEdit,
@@ -35,7 +37,8 @@ class TodoItem extends StatefulWidget {
   });
   final Todo todo;
   final VoidCallback onToggle;
-  final bool active, dragging, deleteHovered;
+  final bool active, dragging, deleteHovered, spaceSwitchArmed;
+  final double spaceSwitchProgress;
   final VoidCallback? onActivate,
       onDeactivate,
       onEdit,
@@ -102,6 +105,7 @@ class _TodoItemState extends State<TodoItem> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final typography = context.appTypography;
     final todo = widget.todo;
     final active = widget.active;
     final dragging = widget.dragging;
@@ -112,6 +116,10 @@ class _TodoItemState extends State<TodoItem> with TickerProviderStateMixin {
     final onEdit = widget.onEdit;
     final onDragStarted = widget.onDragStarted;
     final onDragUpdate = widget.onDragUpdate;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final switchProgress = widget.spaceSwitchArmed && reduceMotion
+        ? 0.7
+        : widget.spaceSwitchProgress.clamp(0.0, 1.0);
     final item = Listener(
       onPointerDown: (event) {
         final box = editKey.currentContext?.findRenderObject();
@@ -174,241 +182,258 @@ class _TodoItemState extends State<TodoItem> with TickerProviderStateMixin {
                 curve: Curves.easeOutCubic,
                 child: Transform.scale(
                   scale: dragging && dark ? 1.025 : 1,
-                  child: AnimatedContainer(
-                    duration: AppMotion.duration(
-                      context,
-                      const Duration(milliseconds: 150),
-                    ),
-                    decoration: active || dragging
-                        ? BoxDecoration(
-                            color: _pinPulse
-                                ? Color.alphaBlend(
-                                    colors.accent.withValues(alpha: 0.04),
-                                    colors.taskSurface,
-                                  )
-                                : dragging && dark
-                                ? Color.alphaBlend(
-                                    colors.ink.withValues(alpha: 0.035),
-                                    colors.taskSurface,
-                                  )
-                                : colors.taskSurface,
-                            borderRadius: BorderRadius.circular(16),
-                            border: widget.deleteHovered
-                                ? Border.all(
-                                    color: context.appColors.destructive,
-                                    width: 1.2,
-                                  )
-                                : Border.all(
-                                    color: _pinPulse
-                                        ? Color.lerp(
-                                            colors.activeBorder,
-                                            colors.accent,
-                                            0.3,
-                                          )!
-                                        : colors.activeBorder,
-                                    width: 0.7,
-                                  ),
-                            boxShadow: dragging && dark
-                                ? [
-                                    BoxShadow(
-                                      color: colors.shadow.withValues(
-                                        alpha: 0.22,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      AnimatedContainer(
+                        duration: AppMotion.duration(
+                          context,
+                          const Duration(milliseconds: 150),
+                        ),
+                        decoration: active || dragging
+                            ? BoxDecoration(
+                                color: _pinPulse
+                                    ? Color.alphaBlend(
+                                        colors.accent.withValues(alpha: 0.04),
+                                        colors.taskSurface,
+                                      )
+                                    : dragging && dark
+                                    ? Color.alphaBlend(
+                                        colors.ink.withValues(alpha: 0.035),
+                                        colors.taskSurface,
+                                      )
+                                    : colors.taskSurface,
+                                borderRadius: BorderRadius.circular(16),
+                                border: widget.deleteHovered
+                                    ? Border.all(
+                                        color: context.appColors.destructive,
+                                        width: 1.2,
+                                      )
+                                    : Border.all(
+                                        color: _pinPulse
+                                            ? Color.lerp(
+                                                colors.activeBorder,
+                                                colors.accent,
+                                                0.3,
+                                              )!
+                                            : colors.activeBorder,
+                                        width: 0.7,
                                       ),
-                                      blurRadius: 16,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ]
-                                : dark
-                                ? null
-                                : [
-                                    BoxShadow(
-                                      color: colors.shadow.withValues(
-                                        alpha: 0.08,
-                                      ),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
-                          )
-                        : null,
-                    constraints: const BoxConstraints(minHeight: 56),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 4,
-                    ),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: AppSpace.touch,
-                          height: 40,
-                          child: Center(
-                            child: AnimatedSwitcher(
-                              duration: AppMotion.duration(
-                                context,
-                                AppMotion.color,
-                              ),
-                              transitionBuilder: (child, animation) =>
-                                  FadeTransition(
-                                    opacity: animation,
-                                    child: ScaleTransition(
-                                      scale: Tween(begin: 0.82, end: 1.0)
-                                          .animate(
-                                            CurvedAnimation(
-                                              parent: animation,
-                                              curve: AppMotion.curve,
-                                            ),
+                                boxShadow: dragging && dark
+                                    ? [
+                                        BoxShadow(
+                                          color: colors.shadow.withValues(
+                                            alpha: 0.22,
                                           ),
-                                      child: child,
-                                    ),
+                                          blurRadius: 16,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ]
+                                    : dark
+                                    ? null
+                                    : [
+                                        BoxShadow(
+                                          color: colors.shadow.withValues(
+                                            alpha: 0.08,
+                                          ),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                              )
+                            : null,
+                        constraints: const BoxConstraints(minHeight: 56),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 4,
+                        ),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: AppSpace.touch,
+                              height: 40,
+                              child: Center(
+                                child: AnimatedSwitcher(
+                                  duration: AppMotion.duration(
+                                    context,
+                                    AppMotion.color,
                                   ),
-                              child: active
-                                  ? Icon(
-                                      SometimeIcons.dotsSixVertical,
-                                      key: ValueKey('move-handle-${todo.id}'),
-                                      size: 22,
-                                      color: colors.secondary,
-                                    )
-                                  : AnimatedBuilder(
-                                      key: ValueKey('checkbox-${todo.id}'),
-                                      animation: _celebration,
-                                      builder: (context, _) => CustomPaint(
-                                        size: const Size.square(21),
-                                        painter: _CompletionPainter(
-                                          progress: progress,
-                                          celebration: _celebration.value,
-                                          outline: colors.outline,
-                                          fill: colors.accent,
-                                          check: colors.onAccent,
+                                  transitionBuilder: (child, animation) =>
+                                      FadeTransition(
+                                        opacity: animation,
+                                        child: ScaleTransition(
+                                          scale: Tween(begin: 0.82, end: 1.0)
+                                              .animate(
+                                                CurvedAnimation(
+                                                  parent: animation,
+                                                  curve: AppMotion.curve,
+                                                ),
+                                              ),
+                                          child: child,
                                         ),
                                       ),
-                                    ),
+                                  child: active
+                                      ? Icon(
+                                          SometimeIcons.dotsSixVertical,
+                                          key: ValueKey(
+                                            'move-handle-${todo.id}',
+                                          ),
+                                          size: 22,
+                                          color: colors.secondary,
+                                        )
+                                      : AnimatedBuilder(
+                                          key: ValueKey('checkbox-${todo.id}'),
+                                          animation: _celebration,
+                                          builder: (context, _) => CustomPaint(
+                                            size: const Size.square(21),
+                                            painter: _CompletionPainter(
+                                              progress: progress,
+                                              celebration: _celebration.value,
+                                              outline: colors.outline,
+                                              fill: colors.accent,
+                                              check: colors.onAccent,
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        Flexible(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _CompletionTitle(
-                                title: todo.title,
-                                progress: progress,
-                                style: Theme.of(context).textTheme.bodyLarge!
-                                    .copyWith(
+                            Flexible(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _CompletionTitle(
+                                    title: todo.title,
+                                    progress: progress,
+                                    style: typography.taskTitle.copyWith(
                                       color: Color.lerp(
                                         colors.text,
                                         colors.secondary,
                                         progress,
                                       ),
                                     ),
-                              ),
-                              if (todo.details.description.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(
-                                    todo.details.description,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(
-                                          color: colors.secondary,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w400,
-                                        ),
                                   ),
-                                ),
-                              if (taskDetailsLabel(
-                                    context,
-                                    todo.details,
-                                  ).isNotEmpty ||
-                                  (todo.isPinned &&
-                                      !kIsWeb &&
-                                      defaultTargetPlatform ==
-                                          TargetPlatform.android))
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 5),
-                                  child: TaskMetadataPill(
-                                    details: todo.details,
-                                    isPinned: todo.isPinned,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        AnimatedSize(
-                          duration: AppMotion.duration(
-                            context,
-                            AppMotion.color,
-                          ),
-                          curve: AppMotion.curve,
-                          child: AnimatedSwitcher(
-                            duration: AppMotion.duration(
-                              context,
-                              AppMotion.color,
-                            ),
-                            transitionBuilder: (child, animation) =>
-                                FadeTransition(
-                                  opacity: animation,
-                                  child: ScaleTransition(
-                                    scale: animation,
-                                    child: child,
-                                  ),
-                                ),
-                            child: active
-                                ? SizedBox(
-                                    key: ValueKey('edit-area-${todo.id}'),
-                                    child: SizedBox(
-                                      key: editKey,
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Pressable(
-                                            key: ValueKey(
-                                              'edit-task-${todo.id}',
-                                            ),
-                                            label:
-                                                '${context.strings.edit}: ${todo.title}',
-                                            onPressed: onEdit,
-                                            builder: (context, state) =>
-                                                SizedBox(
-                                                  width: AppSpace.touch,
-                                                  height: 40,
-                                                  child: Icon(
-                                                    SometimeIcons.pencilSimple,
-                                                    size: 19,
-                                                    color: colors.secondary,
-                                                  ),
-                                                ),
-                                          ),
-                                          if (!kIsWeb &&
-                                              defaultTargetPlatform ==
-                                                  TargetPlatform.android &&
-                                              widget.onPin != null)
-                                            PinAction(
-                                              label: todo.isPinned
-                                                  ? context.strings.unpin
-                                                  : context.strings.pin,
-                                              title: todo.title,
-                                              isPinned: todo.isPinned,
-                                              color: todo.isPinned
-                                                  ? colors.focus
-                                                  : colors.secondary,
-                                              onPressed: widget.onPin,
-                                              onSuccess: _pinSucceeded,
-                                            ),
-                                        ],
+                                  if (todo.details.description.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 2),
+                                      child: Text(
+                                        todo.details.description,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: typography.taskDescription,
                                       ),
                                     ),
-                                  )
-                                : const SizedBox(
-                                    key: ValueKey('edit-area-empty'),
-                                  ),
+                                  if (taskDetailsLabel(
+                                        context,
+                                        todo.details,
+                                      ).isNotEmpty ||
+                                      (todo.isPinned &&
+                                          !kIsWeb &&
+                                          defaultTargetPlatform ==
+                                              TargetPlatform.android))
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 5),
+                                      child: TaskMetadataPill(
+                                        details: todo.details,
+                                        isPinned: todo.isPinned,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            AnimatedSize(
+                              duration: AppMotion.duration(
+                                context,
+                                AppMotion.color,
+                              ),
+                              curve: AppMotion.curve,
+                              child: AnimatedSwitcher(
+                                duration: AppMotion.duration(
+                                  context,
+                                  AppMotion.color,
+                                ),
+                                transitionBuilder: (child, animation) =>
+                                    FadeTransition(
+                                      opacity: animation,
+                                      child: ScaleTransition(
+                                        scale: animation,
+                                        child: child,
+                                      ),
+                                    ),
+                                child: active
+                                    ? SizedBox(
+                                        key: ValueKey('edit-area-${todo.id}'),
+                                        child: SizedBox(
+                                          key: editKey,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Pressable(
+                                                key: ValueKey(
+                                                  'edit-task-${todo.id}',
+                                                ),
+                                                label:
+                                                    '${context.strings.edit}: ${todo.title}',
+                                                onPressed: onEdit,
+                                                builder: (context, state) =>
+                                                    SizedBox(
+                                                      width: AppSpace.touch,
+                                                      height: 40,
+                                                      child: Icon(
+                                                        SometimeIcons
+                                                            .pencilSimple,
+                                                        size: 19,
+                                                        color: colors.secondary,
+                                                      ),
+                                                    ),
+                                              ),
+                                              if (!kIsWeb &&
+                                                  defaultTargetPlatform ==
+                                                      TargetPlatform.android &&
+                                                  widget.onPin != null)
+                                                PinAction(
+                                                  label: todo.isPinned
+                                                      ? context.strings.unpin
+                                                      : context.strings.pin,
+                                                  title: todo.title,
+                                                  isPinned: todo.isPinned,
+                                                  color: todo.isPinned
+                                                      ? colors.focus
+                                                      : colors.secondary,
+                                                  onPressed: widget.onPin,
+                                                  onSuccess: _pinSucceeded,
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      )
+                                    : const SizedBox(
+                                        key: ValueKey('edit-area-empty'),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (!widget.deleteHovered &&
+                          (widget.spaceSwitchArmed || switchProgress > 0))
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: Transform.scale(
+                              scale: 0.985 + switchProgress * 0.015,
+                              child: CustomPaint(
+                                key: ValueKey('space-switch-border-${todo.id}'),
+                                painter: _SpaceSwitchBorderPainter(
+                                  progress: switchProgress,
+                                  stripe: colors.destructive,
+                                  contrast: colors.ink,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
               ),
@@ -422,6 +447,65 @@ class _TodoItemState extends State<TodoItem> with TickerProviderStateMixin {
         ? item
         : CompositedTransformTarget(link: tutorialLink, child: item);
   }
+}
+
+class _SpaceSwitchBorderPainter extends CustomPainter {
+  const _SpaceSwitchBorderPainter({
+    required this.progress,
+    required this.stripe,
+    required this.contrast,
+  });
+
+  final double progress;
+  final Color stripe;
+  final Color contrast;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0 || size.isEmpty) return;
+    final visibility = Curves.easeOutCubic.transform(
+      (progress * 4).clamp(0.0, 1.0),
+    );
+    final outer = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(16),
+    );
+    final inner = outer.deflate(3);
+    final border = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRRect(outer)
+      ..addRRect(inner);
+    canvas.save();
+    canvas.clipPath(border);
+    canvas.drawRRect(
+      outer,
+      Paint()..color = contrast.withValues(alpha: 0.34 * visibility),
+    );
+    const spacing = 11.0;
+    final phase = (progress * spacing * 2) % spacing;
+    final paint = Paint()
+      ..color = stripe.withValues(alpha: 0.72 * visibility)
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.square;
+    for (
+      var x = -size.height - spacing + phase;
+      x < size.width + spacing;
+      x += spacing
+    ) {
+      canvas.drawLine(
+        Offset(x, size.height + spacing),
+        Offset(x + size.height + spacing * 2, -spacing),
+        paint,
+      );
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_SpaceSwitchBorderPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.stripe != stripe ||
+      oldDelegate.contrast != contrast;
 }
 
 class _CompletionPainter extends CustomPainter {

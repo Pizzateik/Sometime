@@ -66,7 +66,7 @@ Use Spaces for separate parts of life or work. Choose light, dark, or soft appea
 ## Download
 
 <p align="center">
-  <a href="https://github.com/Pizzateik/Sometime/releases/tag/v1.0.0-beta.1"><strong>Download Android beta 1</strong></a>
+  <a href="https://github.com/Pizzateik/Sometime/releases"><strong>View Android beta releases</strong></a>
 </p>
 
 The APK is distributed through [GitHub Releases](https://github.com/Pizzateik/Sometime/releases). GitHub marks beta builds as prereleases.

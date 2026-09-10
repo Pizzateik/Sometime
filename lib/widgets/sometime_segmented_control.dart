@@ -121,12 +121,19 @@ class _SometimeSegmentedControlState<T>
                                   context,
                                   AppMotion.color,
                                 ),
-                                style: Theme.of(context).textTheme.labelLarge!
-                                    .copyWith(
-                                      color: item == widget.value
-                                          ? colors.onStrongSelection
-                                          : colors.secondary,
-                                    ),
+                                style:
+                                    (item == widget.value
+                                            ? context
+                                                  .appTypography
+                                                  .segmentedSelected
+                                            : context
+                                                  .appTypography
+                                                  .segmentedUnselected)
+                                        .copyWith(
+                                          color: item == widget.value
+                                              ? colors.onStrongSelection
+                                              : colors.secondary,
+                                        ),
                                 child: Text(
                                   widget.label(item),
                                   textAlign: TextAlign.center,

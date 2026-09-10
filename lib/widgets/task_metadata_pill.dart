@@ -141,8 +141,7 @@ class _MetadataGroup extends StatelessWidget {
       entry.text,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: Theme.of(context).textTheme.labelLarge
-          ?.copyWith(color: color, fontSize: 11, fontWeight: FontWeight.w400),
+      style: context.appTypography.metadata.copyWith(color: color),
     );
     return Row(
       mainAxisSize: MainAxisSize.min,

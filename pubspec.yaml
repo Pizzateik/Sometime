@@ -1,7 +1,7 @@
 name: todo_app
 description: A quiet, local task list for iOS and Android.
 publish_to: 'none'
-version: 1.0.0-beta.1+1
+version: 1.0.0-beta.2+2
 
 environment:
   sdk: ^3.13.2

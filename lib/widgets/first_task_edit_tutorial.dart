@@ -60,18 +60,16 @@ class FirstTaskEditTutorial extends StatelessWidget {
                     children: [
                       Text(
                         strings.firstTaskEditTutorialTitle,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        style: context.appTypography.sectionTitle.copyWith(
                           fontSize: 17,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         strings.firstTaskEditTutorialBody(showPin: showPin),
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: colors.secondary,
+                        style: context.appTypography.taskDescription.copyWith(
                           height: 1.45,
-                          fontWeight: FontWeight.w400,
+                          fontSize: 13,
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -117,11 +115,9 @@ class FirstTaskEditTutorial extends StatelessWidget {
                           strings.gotIt,
                           maxLines: 1,
                           softWrap: false,
-                          style: Theme.of(context).textTheme.labelLarge
-                              ?.copyWith(
-                                color: colors.accent,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          style: context.appTypography.buttonLabel.copyWith(
+                            color: colors.accent,
+                          ),
                         ),
                       ),
                     ),
@@ -158,8 +154,7 @@ class _TutorialTag extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelLarge
-                ?.copyWith(fontSize: 12, fontWeight: FontWeight.w600),
+            style: context.appTypography.controlLabel.copyWith(fontSize: 12),
           ),
         ],
       ),

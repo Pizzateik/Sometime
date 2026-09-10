@@ -1,6 +1,7 @@
 import '../app/sometime_icons.dart';
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/gestures.dart';
@@ -24,9 +25,36 @@ import '../widgets/add_todo_sheet.dart';
 import '../widgets/first_empty_home_hint.dart';
 import '../widgets/sometime_input.dart';
 import '../widgets/space_management_tutorial.dart';
-import '../widgets/sometime_icon_box.dart';
+import '../widgets/sometime_action_icon.dart';
+import '../widgets/todo_item.dart';
 import 'settings_screen.dart';
 import 'todo_space_screen.dart';
+
+class _TaskDragSession {
+  _TaskDragSession(TaskDragStartDetails details)
+    : sourceSpaceId = details.sourceSpaceId,
+      todo = details.todo,
+      pointer = details.pointer,
+      feedbackBounds = details.feedbackBounds,
+      grabOffset = details.grabOffset,
+      sourceGroup = details.sourceGroup,
+      sourceIndex = details.sourceIndex,
+      destinationSpaceId = details.sourceSpaceId,
+      targetGroup = details.sourceGroup,
+      targetIndex = details.sourceIndex;
+
+  final String sourceSpaceId;
+  final Todo todo;
+  final Rect feedbackBounds;
+  final Offset grabOffset;
+  final TodoGroup sourceGroup;
+  final int sourceIndex;
+  Offset pointer;
+  String destinationSpaceId;
+  TodoGroup targetGroup;
+  int targetIndex;
+  bool validDrop = false;
+}
 
 class MainPagerScreen extends StatefulWidget {
   const MainPagerScreen({
@@ -53,7 +81,7 @@ class MainPagerScreen extends StatefulWidget {
 }
 
 class _MainPagerScreenState extends State<MainPagerScreen>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late final PageController _pageController = PageController();
   late final AnimationController _firstEntrance = AnimationController(
     vsync: this,
@@ -64,6 +92,10 @@ class _MainPagerScreenState extends State<MainPagerScreen>
   late final CurvedAnimation _firstStageTutorialText = _firstStage(0.22, 0.62);
   late final CurvedAnimation _firstStageTutorialArrow = _firstStage(0.48, 0.92);
   late final CurvedAnimation _firstStageButton = _firstStage(0.35, 1);
+  late final AnimationController _spaceDwellProgress = AnimationController(
+    vsync: this,
+    duration: crossSpaceDwellDuration,
+  );
   int _currentPage = 0;
   bool _manageSpaces = false;
   bool _firstEntranceStarted = false;
@@ -82,6 +114,17 @@ class _MainPagerScreenState extends State<MainPagerScreen>
   bool _spaceTutorialPending = false;
   bool _spaceTutorialMeasurementScheduled = false;
   Rect? _spaceTutorialTargetRect;
+  static const crossSpaceDwellDuration = Duration(milliseconds: 1050);
+  Timer? _spaceDwellTimer;
+  String? _hoveredSpaceId;
+  bool _dragOverSpaceHeader = false;
+  final _spacePageKeys = <String, GlobalKey<TodoSpaceScreenState>>{};
+  _TaskDragSession? _taskDrag;
+  OverlayEntry? _taskDragOverlay;
+  Timer? _taskDragTickTimer;
+
+  String? get _dragSourceSpaceId => _taskDrag?.sourceSpaceId;
+  String? get _dragPreviewSpaceId => _taskDrag?.destinationSpaceId;
 
   String? _notificationTask;
   String? _lastNotificationProblem;
@@ -92,6 +135,8 @@ class _MainPagerScreenState extends State<MainPagerScreen>
     WidgetsBinding.instance.addObserver(this);
     _listenNotifications();
     widget.settingsController.addListener(_settingsChanged);
+    widget.todoController.addListener(_validateDragState);
+    _spaceDwellProgress.addListener(_refreshTaskDragOverlay);
     WidgetBridge.target.addListener(_widgetOpened);
     WidgetsBinding.instance.addPostFrameCallback((_) => _widgetOpened());
   }
@@ -225,18 +270,23 @@ class _MainPagerScreenState extends State<MainPagerScreen>
   }
 
   bool _composerOpen = false;
-  bool _dragging = false;
+  bool get _dragging => _taskDrag != null;
   bool _deleteHovered = false;
   final _deleteMagnetOffset = ValueNotifier<Offset>(Offset.zero);
   final _navigationKeys = <String, GlobalKey>{};
 
   @override
   void dispose() {
+    _spaceDwellTimer?.cancel();
+    _taskDragTickTimer?.cancel();
+    _taskDragOverlay?.remove();
     _finishFirstEmptyHomeSession(updateUi: false);
     WidgetsBinding.instance.removeObserver(this);
     widget.notifications?.removeListener(_notificationChanged);
     widget.notifications?.openTask.removeListener(_notificationOpened);
     widget.settingsController.removeListener(_settingsChanged);
+    widget.todoController.removeListener(_validateDragState);
+    _spaceDwellProgress.removeListener(_refreshTaskDragOverlay);
     _pageController.dispose();
     _firstStageHeader.dispose();
     _firstStageBody.dispose();
@@ -244,6 +294,7 @@ class _MainPagerScreenState extends State<MainPagerScreen>
     _firstStageTutorialArrow.dispose();
     _firstStageButton.dispose();
     _firstEntrance.dispose();
+    _spaceDwellProgress.dispose();
     WidgetBridge.target.removeListener(_widgetOpened);
     _deleteMagnetOffset.dispose();
     super.dispose();
@@ -251,11 +302,50 @@ class _MainPagerScreenState extends State<MainPagerScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
+    if (state != AppLifecycleState.resumed) {
       _finishFirstEmptyHomeSession();
       _dismissTaskTutorial(showSpaceTutorial: false);
+      final sourceState = _spacePageKeys[_dragSourceSpaceId]?.currentState;
+      if (sourceState != null) {
+        sourceState.cancelActiveDrag();
+      } else {
+        _finishTaskDrag(cancel: true);
+      }
     }
+  }
+
+  void _validateDragState() {
+    if (!_dragging || !mounted) return;
+    final spaces = widget.todoController.spaces;
+    final drag = _taskDrag!;
+    final source = widget.todoController.spaceByIdOrNull(drag.sourceSpaceId);
+    final sourceHasTask =
+        source?.todos.any((todo) => todo.id == drag.todo.id) ?? false;
+    if (!sourceHasTask) {
+      final sourceState = _spacePageKeys[_dragSourceSpaceId]?.currentState;
+      if (sourceState != null) {
+        sourceState.cancelActiveDrag();
+      } else {
+        _finishTaskDrag(cancel: true);
+      }
+      return;
+    }
+    if (spaces.any((space) => space.id == _dragPreviewSpaceId)) return;
+    final sourceIndex = spaces.indexWhere(
+      (space) => space.id == _dragSourceSpaceId,
+    );
+    _clearSpaceDwell(updateHeader: false);
+    setState(() {
+      drag.destinationSpaceId = drag.sourceSpaceId;
+      drag.targetGroup = drag.sourceGroup;
+      drag.targetIndex = drag.sourceIndex;
+      drag.validDrop = false;
+      _hoveredSpaceId = null;
+      _dragOverSpaceHeader = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && sourceIndex >= 0) _showPage(sourceIndex);
+    });
   }
 
   bool get _isFirstHomeEligible =>
@@ -371,6 +461,267 @@ class _MainPagerScreenState extends State<MainPagerScreen>
       duration: AppMotion.open,
       curve: AppMotion.curve,
     );
+  }
+
+  void _startTaskDrag(TaskDragStartDetails details) {
+    if (_taskDrag != null) return;
+    final drag = _TaskDragSession(details);
+    setState(() => _taskDrag = drag);
+    final overlay = Overlay.of(context, rootOverlay: true);
+    _taskDragOverlay = OverlayEntry(
+      builder: (context) {
+        final activeDrag = _taskDrag;
+        if (activeDrag == null) return const SizedBox.shrink();
+        final overlayBox = overlay.context.findRenderObject();
+        final globalTopLeft = activeDrag.pointer - activeDrag.grabOffset;
+        final position = overlayBox is RenderBox && overlayBox.attached
+            ? overlayBox.globalToLocal(globalTopLeft)
+            : globalTopLeft;
+        return Positioned(
+          left: position.dx,
+          top: position.dy,
+          width: activeDrag.feedbackBounds.width,
+          child: IgnorePointer(
+            child: Material(
+              color: Colors.transparent,
+              clipBehavior: Clip.none,
+              child: TodoItem(
+                todo: activeDrag.todo,
+                active: true,
+                dragging: true,
+                deleteHovered: _deleteHovered,
+                spaceSwitchArmed: _hoveredSpaceId != null,
+                spaceSwitchProgress: _spaceDwellProgress.value,
+                onToggle: () {},
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    overlay.insert(_taskDragOverlay!);
+    _taskDragTickTimer = Timer.periodic(
+      const Duration(milliseconds: 16),
+      (_) => _updateActiveDropSurface(),
+    );
+    _handleTaskDragPosition(details.pointer, false);
+  }
+
+  void _refreshTaskDragOverlay() {
+    _taskDragOverlay?.markNeedsBuild();
+  }
+
+  void _updateTaskDrag(Offset position) {
+    if (_taskDrag == null) return;
+    _handleTaskDragPosition(position, _deleteHovered);
+  }
+
+  void _endTaskDrag(bool cancel) {
+    _finishTaskDrag(cancel: cancel);
+  }
+
+  void _finishTaskDrag({required bool cancel}) {
+    final drag = _taskDrag;
+    if (drag == null) return;
+    final delete = !cancel && _deleteHovered;
+    final validDrop = !cancel && !delete && drag.validDrop;
+    _taskDragTickTimer?.cancel();
+    _taskDragTickTimer = null;
+    _taskDragOverlay?.remove();
+    _taskDragOverlay = null;
+    _clearSpaceDwell(updateHeader: false);
+    setState(() {
+      _taskDrag = null;
+      _deleteHovered = false;
+      _dragOverSpaceHeader = false;
+      _hoveredSpaceId = null;
+    });
+    if (delete) {
+      widget.todoController.deleteTodo(drag.sourceSpaceId, drag.todo.id);
+      return;
+    }
+    if (!validDrop) return;
+    if (drag.destinationSpaceId != drag.sourceSpaceId) {
+      widget.todoController.moveTodoToSpace(
+        drag.sourceSpaceId,
+        drag.todo.id,
+        drag.destinationSpaceId,
+        group: drag.targetGroup,
+        index: drag.targetIndex,
+      );
+      return;
+    }
+    final moved =
+        drag.targetGroup != drag.sourceGroup ||
+        drag.targetIndex != drag.sourceIndex;
+    if (!moved) return;
+    var index = drag.targetIndex;
+    if (drag.targetGroup == drag.sourceGroup && drag.sourceIndex <= index) {
+      index++;
+    }
+    widget.todoController.moveTodo(
+      drag.sourceSpaceId,
+      drag.todo.id,
+      group: drag.targetGroup,
+      index: index,
+    );
+  }
+
+  bool _handleTaskDragPosition(Offset position, bool deleteHovered) {
+    final drag = _taskDrag;
+    if (drag == null) return false;
+    drag.pointer = position;
+    _taskDragOverlay?.markNeedsBuild();
+    if (deleteHovered) {
+      drag.validDrop = false;
+      _clearSpaceDwell();
+      if (_dragOverSpaceHeader) setState(() => _dragOverSpaceHeader = false);
+      return false;
+    }
+    final spaces = widget.todoController.spaces;
+    final currentSpaceId = _dragPreviewSpaceId;
+    final hits = <({String id, Rect bounds})>[];
+    for (final space in spaces) {
+      final box = _spaceNameKeys[space.id]?.currentContext?.findRenderObject();
+      if (box is! RenderBox || !box.attached || !box.hasSize) continue;
+      final bounds = Rect.fromPoints(
+        box.localToGlobal(Offset.zero),
+        box.localToGlobal(box.size.bottomRight(Offset.zero)),
+      ).inflate(12);
+      if (!bounds.isFinite) continue;
+      if (bounds.contains(position)) {
+        hits.add((id: space.id, bounds: bounds));
+      }
+    }
+    hits.sort(
+      (a, b) => (a.bounds.center - position).distance.compareTo(
+        (b.bounds.center - position).distance,
+      ),
+    );
+    final hitId = hits.firstOrNull?.id;
+    final targetId = hitId == currentSpaceId ? null : hitId;
+    final overHeader = hitId != null;
+    if (_dragOverSpaceHeader != overHeader) {
+      setState(() => _dragOverSpaceHeader = overHeader);
+    }
+    if (_hoveredSpaceId == targetId) {
+      if (!overHeader) _updateActiveDropSurface();
+      return overHeader;
+    }
+    _clearSpaceDwell(updateHeader: false);
+    if (targetId == null) {
+      if (mounted) setState(() => _hoveredSpaceId = null);
+      if (!overHeader) _updateActiveDropSurface();
+      return overHeader;
+    }
+    setState(() => _hoveredSpaceId = targetId);
+    _taskDragOverlay?.markNeedsBuild();
+    if (!MediaQuery.disableAnimationsOf(context)) {
+      _spaceDwellProgress.forward(from: 0);
+    }
+    _spaceDwellTimer = Timer(crossSpaceDwellDuration, () {
+      if (!mounted || !_dragging || _hoveredSpaceId != targetId) return;
+      final index = widget.todoController.spaces.indexWhere(
+        (space) => space.id == targetId,
+      );
+      if (index < 0 || _dragPreviewSpaceId == targetId) {
+        _clearSpaceDwell();
+        return;
+      }
+      _spaceDwellTimer = null;
+      _spaceDwellProgress
+        ..stop()
+        ..value = 1;
+      AppHaptics.selection();
+      setState(() {
+        _hoveredSpaceId = null;
+        drag.destinationSpaceId = targetId;
+        drag.targetGroup = drag.sourceGroup;
+        final count = widget.todoController
+            .activeTodos(targetId, drag.sourceGroup)
+            .where((todo) => todo.id != drag.todo.id)
+            .length;
+        drag.targetIndex = drag.sourceIndex.clamp(0, count);
+        drag.validDrop = false;
+      });
+      _taskDragOverlay?.markNeedsBuild();
+      _showPage(index);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _spaceDwellProgress.animateBack(
+          0,
+          duration: AppMotion.duration(
+            context,
+            const Duration(milliseconds: 160),
+          ),
+          curve: AppMotion.curve,
+        );
+        if (_taskDrag == drag) _updateActiveDropSurface();
+      });
+    });
+    if (!overHeader) _updateActiveDropSurface();
+    return overHeader;
+  }
+
+  void _clearSpaceDwell({bool updateHeader = true}) {
+    _spaceDwellTimer?.cancel();
+    _spaceDwellTimer = null;
+    _spaceDwellProgress.stop();
+    final fadeFeedback =
+        updateHeader &&
+        mounted &&
+        !MediaQuery.disableAnimationsOf(context) &&
+        _spaceDwellProgress.value > 0;
+    if (fadeFeedback) {
+      _spaceDwellProgress.animateBack(
+        0,
+        duration: AppMotion.duration(
+          context,
+          const Duration(milliseconds: 140),
+        ),
+        curve: AppMotion.curve,
+      );
+    } else {
+      _spaceDwellProgress.value = 0;
+    }
+    if (!updateHeader || !mounted || _hoveredSpaceId == null) return;
+    setState(() => _hoveredSpaceId = null);
+    _taskDragOverlay?.markNeedsBuild();
+  }
+
+  void _updateActiveDropSurface() {
+    final drag = _taskDrag;
+    if (drag == null || _deleteHovered || _dragOverSpaceHeader) return;
+    final state = _spacePageKeys[drag.destinationSpaceId]?.currentState;
+    if (state == null) {
+      drag.validDrop = false;
+      return;
+    }
+    state.updateExternalDrag(drag.pointer);
+    final target = state.resolveTaskDropTarget(
+      drag.pointer,
+      drag.sourceGroup,
+      drag.sourceIndex,
+      drag.todo.id,
+    );
+    if (target == null) {
+      if (drag.validDrop) {
+        setState(() => drag.validDrop = false);
+      }
+      return;
+    }
+    final categoryChanged = drag.targetGroup != target.group;
+    if (drag.validDrop &&
+        drag.targetGroup == target.group &&
+        drag.targetIndex == target.index) {
+      return;
+    }
+    setState(() {
+      drag.targetGroup = target.group;
+      drag.targetIndex = target.index;
+      drag.validDrop = true;
+    });
+    if (categoryChanged) AppHaptics.selection();
   }
 
   Future<void> _createSpace() async {
@@ -591,6 +942,9 @@ class _MainPagerScreenState extends State<MainPagerScreen>
                         spaces: spaces,
                         navigationKeys: _navigationKeys,
                         navigationTextKeys: _spaceNameKeys,
+                        hoveredSpaceId: _hoveredSpaceId,
+                        dwellProgress: _spaceDwellProgress,
+                        taskDragging: _dragging,
                         spaceTutorialLink: _spaceTutorialLink,
                         manageSpaces: _manageSpaces,
                         onRename: _renameSpace,
@@ -636,7 +990,10 @@ class _MainPagerScreenState extends State<MainPagerScreen>
                     children: [
                       for (var index = 0; index < spaces.length; index++)
                         TodoSpaceScreen(
-                          key: ValueKey(spaces[index].id),
+                          key: _spacePageKeys.putIfAbsent(
+                            spaces[index].id,
+                            () => GlobalKey<TodoSpaceScreenState>(),
+                          ),
                           spaceId: spaces[index].id,
                           focusTaskId: _notificationTask,
                           controller: widget.todoController,
@@ -648,8 +1005,17 @@ class _MainPagerScreenState extends State<MainPagerScreen>
                           showPermanentEmptyState: !_isFirstHomeEligible,
                           buttonBounds: _buttonBounds,
                           panelTop: _panelTop,
-                          onDragChanged: (value) =>
-                              setState(() => _dragging = value),
+                          onTaskDragStart: _startTaskDrag,
+                          onTaskDragUpdate: _updateTaskDrag,
+                          onTaskDragEnd: _endTaskDrag,
+                          draggedTodo: _taskDrag?.todo,
+                          dragSourceSpaceId: _dragSourceSpaceId,
+                          dragDestinationSpaceId: _dragPreviewSpaceId,
+                          dragTargetGroup: _taskDrag?.targetGroup,
+                          dragTargetIndex: _taskDrag?.targetIndex,
+                          keepDragAlive:
+                              _dragging &&
+                              _dragSourceSpaceId == spaces[index].id,
                           onDeleteHoverChanged: (value) =>
                               setState(() => _deleteHovered = value),
                           onDeleteMagnetChanged: (value) =>
@@ -756,13 +1122,18 @@ class _MainPagerScreenState extends State<MainPagerScreen>
                         liveRegion: true,
                         child: Text(
                           context.strings.deletedEntry,
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: context.appTypography.body.copyWith(
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ),
                     TextButton(
                       onPressed: widget.todoController.undoDeletion,
-                      child: Text(context.strings.undo),
+                      child: Text(
+                        context.strings.undo,
+                        style: context.appTypography.buttonLabel,
+                      ),
                     ),
                   ],
                 ),
@@ -911,6 +1282,9 @@ class _SharedHeader extends StatelessWidget {
     required this.spaces,
     required this.navigationKeys,
     required this.navigationTextKeys,
+    required this.hoveredSpaceId,
+    required this.dwellProgress,
+    required this.taskDragging,
     required this.spaceTutorialLink,
     required this.manageSpaces,
     required this.onRename,
@@ -931,6 +1305,9 @@ class _SharedHeader extends StatelessWidget {
   final List<TodoSpace> spaces;
   final Map<String, GlobalKey> navigationKeys;
   final Map<String, GlobalKey> navigationTextKeys;
+  final String? hoveredSpaceId;
+  final Animation<double> dwellProgress;
+  final bool taskDragging;
   final LayerLink spaceTutorialLink;
   final PageController pageController;
   final int settingsPageIndex;
@@ -941,7 +1318,11 @@ class _SharedHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([pageController, settingsController]),
+      animation: Listenable.merge([
+        pageController,
+        settingsController,
+        dwellProgress,
+      ]),
       builder: (context, _) {
         final page = pageController.hasClients ? pageController.page ?? 0 : 0.0;
         final settingsProgress = settingsPageIndex == 0
@@ -972,7 +1353,7 @@ class _SharedHeader extends StatelessWidget {
                     final painter = TextPainter(
                       text: TextSpan(
                         text: spaces[i].name,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        style: context.appTypography.spaceActive.copyWith(
                           fontSize:
                               lerpDouble(
                                 18,
@@ -980,7 +1361,6 @@ class _SharedHeader extends StatelessWidget {
                                 active,
                               )! *
                               candidate,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       textDirection: Directionality.of(context),
@@ -1001,130 +1381,147 @@ class _SharedHeader extends StatelessWidget {
             final activeIndex = spaces.isEmpty
                 ? 0
                 : page.round().clamp(0, spaces.length - 1).toInt();
-            return Row(
-              children: [
-                Expanded(
-                  child: TapRegion(
-                    groupId: 'space-management',
-                    onTapOutside: (_) => onDismiss(),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        for (var index = 0; index < spaces.length; index++) ...[
-                          if (index > 0) const SizedBox(width: 12),
-                          Builder(
-                            builder: (context) {
-                              final item = _SpaceNavigationItem(
-                                key: navigationKeys.putIfAbsent(
-                                  spaces[index].id,
-                                  () => GlobalKey(),
-                                ),
-                                nameKey: navigationTextKeys.putIfAbsent(
-                                  spaces[index].id,
-                                  () => GlobalKey(),
-                                ),
-                                maxWidth: widths[index] * fit,
-                                fontScale: fontScale,
-                                name: spaces[index].name,
-                                index: index,
-                                page: page,
-                                settingsProgress: settingsProgress,
-                                singleSpace: spaces.length == 1,
-                                onPressed: () => manageSpaces
-                                    ? onRename(index)
-                                    : onOpenPage(index),
-                                onLongPress: () => onManage(index),
-                                tutorialLink:
-                                    !manageSpaces && index == activeIndex
-                                    ? spaceTutorialLink
-                                    : null,
-                              );
-                              return item;
-                            },
-                          ),
-                        ],
-                        if (manageSpaces)
-                          if (spaces.length >= TodoController.maxSpaces)
-                            SizedBox(
-                              width: 48,
-                              height: 48,
-                              child: Icon(
-                                SometimeIcons.prohibit,
-                                size: 21,
-                                semanticLabel: context.strings.maxSpaces,
-                              ),
-                            )
-                          else
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const SizedBox(width: AppSpace.md),
-                                _SpaceManagementAddButton(
-                                  key: const ValueKey('add-space'),
-                                  onPressed: onCreate,
-                                ),
-                              ],
+            return Transform.translate(
+              offset: const Offset(0, -AppSpace.spaceHeaderLift),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TapRegion(
+                      groupId: 'space-management',
+                      onTapOutside: (_) => onDismiss(),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          for (
+                            var index = 0;
+                            index < spaces.length;
+                            index++
+                          ) ...[
+                            if (index > 0) const SizedBox(width: 12),
+                            Builder(
+                              builder: (context) {
+                                final item = _SpaceNavigationItem(
+                                  key: navigationKeys.putIfAbsent(
+                                    spaces[index].id,
+                                    () => GlobalKey(),
+                                  ),
+                                  nameKey: navigationTextKeys.putIfAbsent(
+                                    spaces[index].id,
+                                    () => GlobalKey(),
+                                  ),
+                                  maxWidth: widths[index] * fit,
+                                  fontScale: fontScale,
+                                  name: spaces[index].name,
+                                  index: index,
+                                  page: page,
+                                  settingsProgress: settingsProgress,
+                                  singleSpace: spaces.length == 1,
+                                  onPressed: () {
+                                    if (taskDragging) return;
+                                    if (manageSpaces) {
+                                      onRename(index);
+                                    } else {
+                                      onOpenPage(index);
+                                    }
+                                  },
+                                  onLongPress: () {
+                                    if (!taskDragging) onManage(index);
+                                  },
+                                  tutorialLink:
+                                      !manageSpaces && index == activeIndex
+                                      ? spaceTutorialLink
+                                      : null,
+                                  dwellHovered:
+                                      hoveredSpaceId == spaces[index].id,
+                                  dwellProgress: dwellProgress.value,
+                                );
+                                return item;
+                              },
                             ),
-                      ],
+                          ],
+                          if (manageSpaces)
+                            if (spaces.length >= TodoController.maxSpaces)
+                              SizedBox(
+                                width: 48,
+                                height: 48,
+                                child: Icon(
+                                  SometimeIcons.prohibit,
+                                  size: 21,
+                                  semanticLabel: context.strings.maxSpaces,
+                                ),
+                              )
+                            else
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(width: AppSpace.md),
+                                  _SpaceManagementAddButton(
+                                    key: const ValueKey('add-space'),
+                                    onPressed: onCreate,
+                                  ),
+                                ],
+                              ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: AppSpace.md),
-                Transform.scale(
-                  key: ValueKey(
-                    'profile-scale-${spaces.length == 1 ? spaces.first.id : 'shared'}',
-                  ),
-                  scale: 1 + settingsProgress * 0.12,
-                  child: Pressable(
-                    label: context.strings.openSettings,
-                    selected: settingsProgress == 1,
-                    onPressed: onShowSettings,
-                    radius: 24,
-                    builder: (context, state) => SizedBox.square(
-                      dimension: AppSpace.touch,
-                      child: Center(
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Color.lerp(
-                              colors.track,
-                              colors.settingsAvatar,
-                              settingsProgress,
+                  const SizedBox(width: AppSpace.md),
+                  Transform.scale(
+                    key: ValueKey(
+                      'profile-scale-${spaces.length == 1 ? spaces.first.id : 'shared'}',
+                    ),
+                    scale: 1 + settingsProgress * 0.12,
+                    child: Pressable(
+                      label: context.strings.openSettings,
+                      selected: settingsProgress == 1,
+                      onPressed: onShowSettings,
+                      radius: 24,
+                      builder: (context, state) => SizedBox.square(
+                        dimension: AppSpace.touch,
+                        child: Center(
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color.lerp(
+                                colors.track,
+                                colors.settingsAvatar,
+                                settingsProgress,
+                              ),
                             ),
-                          ),
-                          child: Center(
-                            child: settingsController.value.initial == null
-                                ? Icon(
-                                    SometimeIcons.user,
-                                    size: 20,
-                                    color: Color.lerp(
-                                      colors.secondary,
-                                      colors.onSettingsAvatar,
-                                      settingsProgress,
-                                    ),
-                                  )
-                                : Text(
-                                    settingsController.value.initial!,
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
+                            child: Center(
+                              child: settingsController.value.initial == null
+                                  ? Icon(
+                                      SometimeIcons.user,
+                                      size: 20,
                                       color: Color.lerp(
                                         colors.secondary,
                                         colors.onSettingsAvatar,
                                         settingsProgress,
                                       ),
+                                    )
+                                  : Text(
+                                      settingsController.value.initial!,
+                                      style: context.appTypography.avatarInitial
+                                          .copyWith(
+                                            fontSize: 15,
+                                            color: Color.lerp(
+                                              colors.secondary,
+                                              colors.onSettingsAvatar,
+                                              settingsProgress,
+                                            ),
+                                          ),
                                     ),
-                                  ),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             );
           },
         );
@@ -1214,9 +1611,9 @@ class _SpaceManagementAddButtonState extends State<_SpaceManagementAddButton>
                     : colors.track,
                 borderRadius: BorderRadius.circular(AppSpace.controlRadius),
               ),
-              child: SometimeIconBox(
+              child: SometimeActionIconBox(
                 dimension: 30,
-                icon: SometimeIcons.plus,
+                glyph: SometimeActionGlyph.plus,
                 size: 20,
                 color: colors.secondary,
               ),
@@ -1240,6 +1637,8 @@ class _SpaceNavigationItem extends StatelessWidget {
     required this.onPressed,
     required this.onLongPress,
     required this.nameKey,
+    required this.dwellHovered,
+    required this.dwellProgress,
     this.tutorialLink,
     super.key,
   });
@@ -1254,6 +1653,8 @@ class _SpaceNavigationItem extends StatelessWidget {
   final VoidCallback onPressed;
   final VoidCallback onLongPress;
   final GlobalKey nameKey;
+  final bool dwellHovered;
+  final double dwellProgress;
   final LayerLink? tutorialLink;
 
   @override
@@ -1263,6 +1664,67 @@ class _SpaceNavigationItem extends StatelessWidget {
         (1 - (page - index).abs()).clamp(0.0, 1.0) * (1 - settingsProgress);
     final activeSize = singleSpace ? 24.0 : 22.0;
     final size = lerpDouble(18, activeSize, activeProgress)! * fontScale;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final hoverEmphasis = dwellHovered
+        ? reducedMotion
+              ? 0.35
+              : 0.25 + dwellProgress * 0.75
+        : 0.0;
+    final emphasis = math.max(activeProgress, hoverEmphasis);
+    final textStyle = TextStyle.lerp(
+      context.appTypography.spaceInactive,
+      context.appTypography.spaceActive,
+      emphasis,
+    )!.copyWith(color: Color.lerp(colors.inactiveSpace, colors.ink, emphasis));
+    final text = Text(
+      name,
+      key: nameKey,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: textStyle.copyWith(fontSize: activeSize * fontScale),
+    );
+    final hoverText = Transform.scale(
+      alignment: Alignment.centerLeft,
+      scale: reducedMotion ? 1 : 1 + 0.02 * hoverEmphasis,
+      child: text,
+    );
+    final targetEmphasis = dwellHovered
+        ? reducedMotion
+              ? 0.7
+              : 0.25 + dwellProgress * 0.75
+        : 0.35;
+    final targetIndicator = Positioned(
+      left: -AppSpace.sm,
+      top: -AppSpace.xs,
+      right: -AppSpace.sm,
+      bottom: -AppSpace.xs,
+      child: IgnorePointer(
+        child: AnimatedOpacity(
+          key: ValueKey('space-dwell-indicator-$index'),
+          opacity: dwellHovered ? 1 : 0,
+          duration: AppMotion.duration(context, AppMotion.press),
+          curve: AppMotion.curve,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.hover.withValues(
+                alpha: 0.04 + 0.04 * targetEmphasis,
+              ),
+              border: Border.all(
+                color: colors.outline.withValues(
+                  alpha: 0.28 + 0.32 * targetEmphasis,
+                ),
+                width: 1,
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+      ),
+    );
+    final targetText = Stack(
+      clipBehavior: Clip.none,
+      children: [targetIndicator, hoverText],
+    );
     return Pressable(
       label: context.strings.openSpace(name),
       selected: activeProgress > 0.5,
@@ -1287,38 +1749,10 @@ class _SpaceNavigationItem extends StatelessWidget {
               baseline: 34,
               baselineType: TextBaseline.alphabetic,
               child: tutorialLink == null
-                  ? Text(
-                      name,
-                      key: nameKey,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: activeSize * fontScale,
-                        fontWeight: FontWeight.w600,
-                        color: Color.lerp(
-                          colors.secondary,
-                          colors.ink,
-                          activeProgress,
-                        ),
-                      ),
-                    )
+                  ? targetText
                   : CompositedTransformTarget(
                       link: tutorialLink!,
-                      child: Text(
-                        name,
-                        key: nameKey,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontSize: activeSize * fontScale,
-                          fontWeight: FontWeight.w600,
-                          color: Color.lerp(
-                            colors.secondary,
-                            colors.ink,
-                            activeProgress,
-                          ),
-                        ),
-                      ),
+                      child: targetText,
                     ),
             ),
           ),
@@ -1343,7 +1777,7 @@ class _LoadError extends StatelessWidget {
           children: [
             Text(
               context.strings.loadError,
-              style: Theme.of(context).textTheme.bodyLarge,
+              style: context.appTypography.body,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpace.lg),
@@ -1365,7 +1799,7 @@ class _LoadError extends StatelessWidget {
                 ),
                 child: Text(
                   context.strings.retry,
-                  style: Theme.of(context).textTheme.labelLarge,
+                  style: context.appTypography.buttonLabel,
                 ),
               ),
             ),
@@ -1546,8 +1980,9 @@ class _SpaceDialogAction extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelLarge
-                    ?.copyWith(color: foreground, fontWeight: FontWeight.w600),
+                style: context.appTypography.buttonLabel.copyWith(
+                  color: foreground,
+                ),
               ),
             ),
           ],

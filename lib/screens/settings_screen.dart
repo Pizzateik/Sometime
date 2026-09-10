@@ -76,10 +76,7 @@ class SettingsScreen extends StatelessWidget {
               72,
             ),
             children: [
-              Text(
-                strings.settings,
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
+              Text(strings.settings, style: context.appTypography.display),
               const SizedBox(height: 28),
               AnimatedSwitcher(
                 duration: AppMotion.duration(
@@ -111,16 +108,11 @@ class SettingsScreen extends StatelessWidget {
                     : const _BrandHero(key: ValueKey('brand-hero')),
               ),
               const SizedBox(height: 18),
-              Text(
-                strings.appName,
-                style: Theme.of(context).textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
+              Text(strings.appName, style: context.appTypography.sectionTitle),
               const SizedBox(height: 8),
               Text(
                 strings.appDescription,
-                style: Theme.of(context).textTheme.bodyLarge
-                    ?.copyWith(color: context.appColors.secondary),
+                style: context.appTypography.secondary,
               ),
               const SizedBox(height: 12),
               _SettingsRow(
@@ -255,10 +247,9 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+    style: context.appTypography.controlLabel.copyWith(
       color: context.appColors.secondary,
       fontSize: 11,
-      fontWeight: FontWeight.w700,
       letterSpacing: 1.2,
     ),
   );
@@ -319,7 +310,7 @@ class _SettingsRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              style: context.appTypography.body.copyWith(
                 color: destructive ? context.appColors.destructive : null,
               ),
             ),
@@ -331,8 +322,7 @@ class _SettingsRow extends StatelessWidget {
                 value!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(color: context.appColors.secondary),
+                style: context.appTypography.secondary.copyWith(fontSize: 14),
               ),
             ),
           ],
@@ -409,11 +399,7 @@ class _AboutRows extends StatelessWidget {
           future: PackageInfo.fromPlatform(),
           builder: (context, snapshot) {
             final info = snapshot.data;
-            final version = info == null
-                ? null
-                : info.buildNumber.isEmpty
-                ? info.version
-                : '${info.version} (${info.buildNumber})';
+            final version = info?.version;
             return _SettingsRow(
               label: strings.version,
               value: version,
@@ -437,7 +423,7 @@ class WhySometimeScreen extends StatelessWidget {
       children: [
         Text(
           strings.whyBuiltBody,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.65),
+          style: context.appTypography.body.copyWith(height: 1.65),
         ),
         const SizedBox(height: 34),
         Wrap(
@@ -466,7 +452,7 @@ class _Trait extends StatelessWidget {
       border: Border.all(color: context.appColors.track),
       borderRadius: BorderRadius.circular(999),
     ),
-    child: Text(text, style: Theme.of(context).textTheme.labelLarge),
+    child: Text(text, style: context.appTypography.controlLabel),
   );
 }
 
@@ -532,7 +518,7 @@ class ExperienceScreen extends StatelessWidget {
       return _Subpage(
         title: strings.experience,
         children: [
-          Text(strings.style, style: Theme.of(context).textTheme.titleLarge),
+          Text(strings.style, style: context.appTypography.sectionTitle),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -578,7 +564,7 @@ class ExperienceScreen extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 34),
-          Text(strings.mode, style: Theme.of(context).textTheme.titleLarge),
+          Text(strings.mode, style: context.appTypography.sectionTitle),
           const SizedBox(height: 8),
           for (final mode in AppearanceMode.values)
             _ChoiceRow(
@@ -593,7 +579,7 @@ class ExperienceScreen extends StatelessWidget {
           const SizedBox(height: 26),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: Text(strings.haptics),
+            title: Text(strings.haptics, style: context.appTypography.body),
             value: settingsController.value.hapticsEnabled,
             onChanged: (value) =>
                 unawaited(settingsController.setHaptics(value)),
@@ -893,12 +879,12 @@ class SupportScreen extends StatelessWidget {
           if (purchasesEnabled || supporter) ...[
             Text(
               context.strings.supportNote,
-              style: Theme.of(context).textTheme.titleLarge,
+              style: context.appTypography.sectionTitle,
             ),
             const SizedBox(height: 18),
             Text(
               context.strings.supportBody,
-              style: Theme.of(context).textTheme.bodyLarge,
+              style: context.appTypography.body,
             ),
             const SizedBox(height: 32),
           ],
@@ -933,7 +919,7 @@ class SupportScreen extends StatelessWidget {
               child: Text(
                 _status(context, purchaseService.state),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: context.appColors.secondary),
+                style: context.appTypography.secondary.copyWith(fontSize: 14),
               ),
             ),
           ],
@@ -1014,16 +1000,15 @@ class _SupportButton extends StatelessWidget {
         children: [
           Text(
             title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            style: context.appTypography.buttonLabel.copyWith(
               color: context.appColors.onStrongSelection,
-              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             description,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            style: context.appTypography.caption.copyWith(
               color: context.appColors.onStrongSelection.withValues(
                 alpha: 0.68,
               ),
@@ -1084,9 +1069,7 @@ class _ChoiceRow extends StatelessWidget {
       height: 50,
       child: Row(
         children: [
-          Expanded(
-            child: Text(label, style: Theme.of(context).textTheme.bodyLarge),
-          ),
+          Expanded(child: Text(label, style: context.appTypography.body)),
           if (selected) const Icon(SometimeIcons.check, size: 20),
         ],
       ),
@@ -1149,8 +1132,11 @@ class _StyleButton extends StatelessWidget {
         child: AnimatedDefaultTextStyle(
           duration: AppMotion.duration(context, AppMotion.color),
           curve: AppMotion.curve,
-          style: Theme.of(context).textTheme.labelLarge!
-              .copyWith(color: foreground, fontWeight: FontWeight.w600),
+          style:
+              (selected
+                      ? context.appTypography.segmentedSelected
+                      : context.appTypography.segmentedUnselected)
+                  .copyWith(color: foreground),
           child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ),

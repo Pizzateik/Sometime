@@ -26,21 +26,29 @@
             android:text="Sometime"
             android:textFontWeight="650"
             android:textSize="16sp" />
-        <LinearLayout
+        <ListView
             android:id="@+id/widget_rows"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:orientation="vertical" />
-        <FrameLayout
+            android:clipToPadding="true"
+            android:divider="@null"
+            android:dividerHeight="0dp"
+            android:listSelector="@android:color/transparent"
+            android:overScrollMode="never"
+            android:scrollbars="none" />
+    </LinearLayout>
+    <FrameLayout
             android:id="@+id/widget_plus_row"
-            android:layout_width="match_parent"
-            android:layout_height="42dp">
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp">
             <FrameLayout
                 android:id="@+id/widget_plus"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_gravity="bottom|end">
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
                 <ImageView
                     android:id="@+id/widget_plus_surface"
                     android:layout_width="match_parent"
@@ -54,6 +62,5 @@
                     android:padding="10dp"
                     android:src="@drawable/widget_plus_icon" />
             </FrameLayout>
-        </FrameLayout>
-    </LinearLayout>
+    </FrameLayout>
 </FrameLayout>

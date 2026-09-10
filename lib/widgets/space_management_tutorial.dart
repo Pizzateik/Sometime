@@ -68,21 +68,15 @@ class SpaceManagementTutorial extends StatelessWidget {
                         children: [
                           Text(
                             strings.spaceManagementTutorialTitle,
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            style: context.appTypography.sectionTitle.copyWith(
+                              fontSize: 17,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             strings.spaceManagementTutorialBody,
-                            style: Theme.of(context).textTheme.labelLarge
-                                ?.copyWith(
-                                  color: colors.secondary,
-                                  height: 1.45,
-                                  fontWeight: FontWeight.w400,
-                                ),
+                            style: context.appTypography.taskDescription
+                                .copyWith(height: 1.45, fontSize: 13),
                           ),
                         ],
                       ),
@@ -107,11 +101,9 @@ class SpaceManagementTutorial extends StatelessWidget {
                               strings.gotIt,
                               maxLines: 1,
                               softWrap: false,
-                              style: Theme.of(context).textTheme.labelLarge
-                                  ?.copyWith(
-                                    color: colors.accent,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                              style: context.appTypography.buttonLabel.copyWith(
+                                color: colors.accent,
+                              ),
                             ),
                           ),
                         ),

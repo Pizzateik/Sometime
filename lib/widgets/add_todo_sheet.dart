@@ -13,10 +13,10 @@ import '../models/todo_space.dart' show isSameLocalDate;
 import '../models/task_details.dart';
 import '../utils/natural_datetime_parser.dart';
 import 'add_todo_button.dart';
-import 'sometime_icon_box.dart';
 import 'pressable.dart';
 import 'todo_group_picker.dart';
 import 'task_planning_fields.dart';
+import 'sometime_action_icon.dart';
 
 class AddTodoSheet extends StatefulWidget {
   const AddTodoSheet({
@@ -411,8 +411,9 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                                                 child: Transform.rotate(
                                                   angle: progress * math.pi / 4,
                                                   alignment: Alignment.center,
-                                                  child: SometimeIconBox(
-                                                    icon: SometimeIcons.plus,
+                                                  child: SometimeActionIconBox(
+                                                    glyph: SometimeActionGlyph
+                                                        .plus,
                                                     color: context
                                                         .appColors
                                                         .onAccent,
@@ -547,14 +548,8 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                                     ],
                                     cursorWidth: 1.5,
                                     cursorRadius: const Radius.circular(1),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge!
-                                        .copyWith(
-                                          fontSize: 26,
-                                          height: 1.35,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                    style: context.appTypography.taskTitle
+                                        .copyWith(fontSize: 26, height: 1.35),
                                     decoration: InputDecoration(
                                       hintText: context.strings.title,
                                       hintStyle: TextStyle(
@@ -599,8 +594,7 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                             textCapitalization: TextCapitalization.sentences,
                             cursorWidth: 1.5,
                             cursorRadius: const Radius.circular(1),
-                            style: Theme.of(context).textTheme.bodyLarge
-                                ?.copyWith(color: colors.secondary),
+                            style: context.appTypography.secondary,
                             decoration: InputDecoration(
                               hintText: context.strings.description,
                               counterText: '',
@@ -666,8 +660,8 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                                 AddTodoButton.radius,
                               ),
                             ),
-                            child: SometimeIconBox(
-                              icon: SometimeIcons.arrowUp,
+                            child: SometimeActionIconBox(
+                              glyph: SometimeActionGlyph.arrowUp,
                               size: 22,
                               color: canSubmit
                                   ? context.appColors.onAccent

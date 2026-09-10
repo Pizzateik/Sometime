@@ -51,6 +51,36 @@ private data class WidgetGroup(
     val tasks: List<JSONObject>,
 )
 
+internal data class WidgetCollectionItem(
+    val kind: Kind,
+    val stableId: Long,
+    val groupId: String = "",
+    val spaceId: String = "",
+    val label: String = "",
+    val task: JSONObject? = null,
+    val dense: Boolean = false,
+    val descriptionLines: Int = 1,
+    val showTime: Boolean = false,
+    val emptyMessage: String = "",
+) {
+    enum class Kind { DIVIDER, HEADING, TASK, EMPTY }
+
+    fun viewType(): Int = when (kind) {
+        Kind.DIVIDER -> if (dense) 0 else 1
+        Kind.HEADING -> if (dense) 2 else 3
+        Kind.TASK -> {
+            val hasDescription = task?.optString("description")?.trim()?.isNotEmpty() == true
+            when {
+                !hasDescription && dense -> 4
+                !hasDescription -> 5
+                descriptionLines == 2 -> 7
+                else -> 6
+            }
+        }
+        Kind.EMPTY -> 8
+    }
+}
+
 internal data class WidgetStrings(
     val openSpace: (String) -> String,
     val createTask: String,
@@ -159,14 +189,12 @@ object SometimeWidgets {
         channel.invokeMethod("open", null)
     }
 
-    private fun open(
-        context: Context,
-        widgetId: Int,
+    private fun widgetUri(
         space: String,
         task: String? = null,
         category: String = "today",
         create: Boolean = false,
-    ): PendingIntent {
+    ): Uri.Builder {
         val uri = Uri.Builder()
             .scheme("sometime")
             .authority("widget")
@@ -174,14 +202,50 @@ object SometimeWidgets {
             .appendQueryParameter("category", category)
             .appendQueryParameter("create", create.toString())
         if (task != null) uri.appendQueryParameter("task", task)
-        return PendingIntent.getActivity(
+        return uri
+    }
+
+    private fun pendingIntentCode(widgetId: Int, purpose: String): Int =
+        (31 * widgetId + purpose.hashCode()) and 0x7fffffff
+
+    private fun openTemplate(context: Context, widgetId: Int): PendingIntent =
+        PendingIntent.getActivity(
             context,
-            widgetId,
+            pendingIntentCode(widgetId, "collection-open"),
             Intent(context, MainActivity::class.java)
-                .setData(uri.build())
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+
+    private fun open(
+        context: Context,
+        widgetId: Int,
+        space: String,
+        task: String? = null,
+        category: String = "today",
+        create: Boolean = false,
+        requestCode: Int = widgetId,
+    ): PendingIntent {
+        return PendingIntent.getActivity(
+            context,
+            requestCode,
+            Intent(context, MainActivity::class.java)
+                .setData(widgetUri(space, task, category, create).build())
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    private fun collectionIntent(
+        context: Context,
+        widgetId: Int,
+        width: Float,
+        height: Float,
+    ): Intent = Intent(context, SometimeWidgetRemoteViewsService::class.java).apply {
+        putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+        putExtra("width", width)
+        putExtra("height", height)
+        data = Uri.parse("sometime://widget-collection/$widgetId/${width.toInt()}/${height.toInt()}")
     }
 
     fun updateAll(context: Context) {
@@ -310,19 +374,6 @@ object SometimeWidgets {
             prefs(context).edit().putString("category:$widgetId", category).apply()
         }
         val strings = widgetStrings(context, data)
-        val tasksJson = space?.optJSONArray("tasks")
-        val now = System.currentTimeMillis()
-        val tasks = (0 until (tasksJson?.length() ?: 0)).mapNotNull {
-            tasksJson?.optJSONObject(it)
-        }.filter { task ->
-            val available = task.optJSONArray("availableDate")?.let { parts ->
-                Calendar.getInstance().apply {
-                    clear()
-                    set(parts.optInt(0), parts.optInt(1) - 1, parts.optInt(2))
-                }.timeInMillis
-            } ?: task.optLong("available", 0)
-            available <= now
-        }
         val options = manager.getAppWidgetOptions(widgetId)
         if (Build.VERSION.SDK_INT >= 31) {
             val sizes = options.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)
@@ -331,10 +382,11 @@ object SometimeWidgets {
                 for (size in sizes.distinct()) {
                     responsive[size] = buildViews(
                         context, widgetId, size.width, size.height, data, space,
-                        spaceId, category, strings, tasks,
+                        spaceId, category, strings,
                     )
                 }
                 manager.updateAppWidget(widgetId, RemoteViews(responsive))
+                manager.notifyAppWidgetViewDataChanged(widgetId, R.id.widget_rows)
                 return
             }
         }
@@ -344,9 +396,10 @@ object SometimeWidgets {
             widgetId,
             buildViews(
                 context, widgetId, width, height, data, space, spaceId,
-                category, strings, tasks,
+                category, strings,
             ),
         )
+        manager.notifyAppWidgetViewDataChanged(widgetId, R.id.widget_rows)
     }
 
     private fun buildViews(
@@ -359,38 +412,13 @@ object SometimeWidgets {
         spaceId: String,
         category: String,
         strings: WidgetStrings,
-        tasks: List<JSONObject>,
     ): RemoteViews {
         val palette = palette(context, data)
         val compact = width < 170f || height < 150f
         val denseAll = category == "all" && height >= 220f && height < 300f
         val padding = if (compact || denseAll) 12 else 16
         val brandHeight = if (height < 105f) 0 else 26
-        val showHeadings = category == "all" || height >= 165f
-        val descriptionLines = if (width >= 220f && height >= 300f) 2 else 1
-        var showPlus = width >= 145f && height >= 145f
-        val firstMatchingTask = tasks.firstOrNull {
-            category == "all" || it.optString("category") == category
-        }
-        val minimumTaskHeight = firstMatchingTask?.let {
-            taskHeight(it, descriptionLines, denseAll)
-        } ?: 0
-        val minimumContentHeight = minimumTaskHeight +
-            if (showHeadings && firstMatchingTask != null) {
-                if (denseAll) 18 else 22
-            } else {
-                0
-            }
-        if (showPlus && firstMatchingTask != null &&
-            height - padding * 2 - brandHeight - 42 < minimumContentHeight &&
-            height - padding * 2 - brandHeight >= minimumContentHeight
-        ) {
-            showPlus = false
-        }
-        val plusHeight = if (showPlus) 42 else 0
-        val contentHeight = (height - padding * 2 - brandHeight - plusHeight).roundToInt()
-            .coerceAtLeast(0)
-        val showTime = width >= 270f
+        val showPlus = width >= 145f && height >= 145f
         val views = RemoteViews(context.packageName, R.layout.sometime_widget)
         views.setInt(R.id.widget_surface, "setColorFilter", palette.background)
         val paddingPixels = (padding * context.resources.displayMetrics.density).roundToInt()
@@ -416,7 +444,13 @@ object SometimeWidgets {
         )
         views.setOnClickPendingIntent(
             R.id.widget_brand,
-            open(context, widgetId, spaceId, category = category),
+            open(
+                context,
+                widgetId,
+                spaceId,
+                category = category,
+                requestCode = pendingIntentCode(widgetId, "brand"),
+            ),
         )
         views.setViewVisibility(R.id.widget_plus_row, if (showPlus) View.VISIBLE else View.GONE)
         views.setInt(R.id.widget_plus_surface, "setColorFilter", palette.primary)
@@ -427,13 +461,58 @@ object SometimeWidgets {
         )
         views.setOnClickPendingIntent(
             R.id.widget_plus,
-            open(context, widgetId, spaceId, category = category, create = true),
+            open(
+                context,
+                widgetId,
+                spaceId,
+                category = category,
+                create = true,
+                requestCode = pendingIntentCode(widgetId, "plus"),
+            ),
         )
-        views.removeAllViews(R.id.widget_rows)
+        val safeEnd = if (showPlus) {
+            (48 * context.resources.displayMetrics.density).roundToInt()
+        } else {
+            0
+        }
+        views.setViewPadding(R.id.widget_rows, 0, 0, safeEnd, 0)
+        views.setRemoteAdapter(
+            R.id.widget_rows,
+            collectionIntent(context, widgetId, width, height),
+        )
+        views.setPendingIntentTemplate(R.id.widget_rows, openTemplate(context, widgetId))
+        return views
+    }
 
+    internal fun collectionItems(
+        context: Context,
+        widgetId: Int,
+        width: Float,
+        height: Float,
+        snapshotData: JSONObject = snapshot(context),
+    ): List<WidgetCollectionItem> {
+        val data = snapshotData
+        val spacesJson = data.optJSONArray("spaces")
+        val spaces = (0 until (spacesJson?.length() ?: 0)).mapNotNull {
+            spacesJson?.optJSONObject(it)
+        }
+        val configuredSpace = prefs(context).getString("space:$widgetId", "default-space")
+            ?: "default-space"
+        val space = spaces.firstOrNull { it.optString("id") == configuredSpace }
+            ?: spaces.firstOrNull()
+        val spaceId = space?.optString("id") ?: "default-space"
+        val savedCategory = prefs(context).getString("category:$widgetId", "today") ?: "today"
+        val category = savedCategory.takeIf { it in listOf("today", "soon", "someday", "all") }
+            ?: "today"
+        val strings = widgetStrings(context, data)
+        val denseAll = category == "all" && height >= 220f && height < 300f
+        val showHeadings = category == "all" || height >= 165f
+        val descriptionLines = if (width >= 220f && height >= 300f) 2 else 1
+        val showTime = width >= 270f
         val labels = strings.categoryLabels
         val ids = if (category == "all") listOf("today", "soon", "someday")
         else listOf(category)
+        val tasks = availableTasks(space)
         val groups = ids.map { id ->
             WidgetGroup(
                 id,
@@ -441,166 +520,164 @@ object SometimeWidgets {
                 tasks.filter { it.optString("category") == id },
             )
         }.filter { it.tasks.isNotEmpty() }
-        val allocations = allocateRows(
-            groups, contentHeight, category == "all", descriptionLines, denseAll, showHeadings,
-        )
-        var renderedSections = 0
-        var shown = false
-        for ((group, count) in groups.zip(allocations)) {
-            if (count <= 0) continue
-            if (renderedSections > 0) {
-                val divider = RemoteViews(
-                    context.packageName,
-                    if (denseAll) R.layout.sometime_widget_divider_dense
-                    else R.layout.sometime_widget_divider,
+        val items = mutableListOf<WidgetCollectionItem>()
+        for ((index, group) in groups.withIndex()) {
+            if (index > 0) {
+                items += WidgetCollectionItem(
+                    kind = WidgetCollectionItem.Kind.DIVIDER,
+                    stableId = collectionStableId("divider:$spaceId:${group.id}"),
+                    groupId = group.id,
+                    spaceId = spaceId,
+                    dense = denseAll,
                 )
-                divider.setInt(R.id.widget_divider, "setColorFilter", palette.outline)
-                views.addView(R.id.widget_rows, divider)
             }
             if (showHeadings) {
-                val heading = RemoteViews(
-                    context.packageName,
-                    if (denseAll) R.layout.sometime_widget_heading_dense
-                    else R.layout.sometime_widget_heading,
+                items += WidgetCollectionItem(
+                    kind = WidgetCollectionItem.Kind.HEADING,
+                    stableId = collectionStableId("heading:$spaceId:${group.id}"),
+                    groupId = group.id,
+                    spaceId = spaceId,
+                    label = group.label,
+                    dense = denseAll,
                 )
-                heading.setTextViewText(R.id.widget_heading, group.label)
-                heading.setTextColor(R.id.widget_heading, palette.secondary)
-                views.addView(R.id.widget_rows, heading)
             }
-            for (task in group.tasks.take(count)) {
-                shown = true
-                val description = task.optString("description").trim()
-                val withDescription = description.isNotEmpty()
-                val layout = when {
-                    withDescription && descriptionLines == 2 ->
-                        R.layout.sometime_widget_task_description_two_lines
-                    withDescription -> R.layout.sometime_widget_task_description
-                    denseAll -> R.layout.sometime_widget_task_dense
-                    else -> R.layout.sometime_widget_task
-                }
-                val row = RemoteViews(context.packageName, layout)
-                val title = task.optString("title")
+            for ((taskIndex, task) in group.tasks.withIndex()) {
                 val taskId = task.optString("id")
-                row.setTextViewText(R.id.widget_title, title)
-                row.setTextColor(R.id.widget_title, palette.text)
-                row.setInt(R.id.widget_complete, "setColorFilter", palette.outline)
-                row.setContentDescription(
-                    R.id.widget_complete,
-                    strings.completeTask(title),
-                )
-                row.setContentDescription(
-                    R.id.widget_task,
-                    listOf(title, description.takeIf { withDescription })
-                        .filterNotNull().joinToString(". "),
-                )
-                row.setOnClickPendingIntent(
-                    R.id.widget_task,
-                    open(context, widgetId, spaceId, taskId, group.id),
-                )
-                val complete = Intent(context, TaskNotificationReceiver::class.java)
-                    .setAction("complete")
-                    .setData(Uri.parse("sometime://complete/${Uri.encode(taskId)}"))
-                    .putExtra("space", spaceId)
-                    .putExtra("task", taskId)
-                row.setOnClickPendingIntent(
-                    R.id.widget_complete,
-                    PendingIntent.getBroadcast(
-                        context, widgetId, complete,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                items += WidgetCollectionItem(
+                    kind = WidgetCollectionItem.Kind.TASK,
+                    stableId = collectionStableId(
+                        "task:$spaceId:${group.id}:$taskId:$taskIndex",
                     ),
+                    groupId = group.id,
+                    spaceId = spaceId,
+                    task = task,
+                    dense = denseAll,
+                    descriptionLines = descriptionLines,
+                    showTime = showTime,
                 )
-                val minutes = task.optInt("minutes", -1)
-                row.setTextViewText(
-                    R.id.widget_time,
-                    if (showTime && minutes >= 0) "%02d:%02d".format(minutes / 60, minutes % 60)
-                    else "",
-                )
-                row.setTextColor(R.id.widget_time, palette.secondary)
-                if (withDescription) {
-                    row.setTextViewText(R.id.widget_description, description)
-                    row.setTextColor(R.id.widget_description, palette.secondary)
-                }
-                views.addView(R.id.widget_rows, row)
             }
-            renderedSections++
         }
-        if (!shown) {
-            val empty = RemoteViews(context.packageName, R.layout.sometime_widget_empty)
-            val message = if (space == null) strings.openFirst else strings.nothingHere
-            empty.setTextViewText(R.id.widget_empty, message)
-            empty.setTextColor(R.id.widget_empty, palette.secondary)
-            views.addView(R.id.widget_rows, empty)
+        if (items.isEmpty()) {
+            items += WidgetCollectionItem(
+                kind = WidgetCollectionItem.Kind.EMPTY,
+                stableId = collectionStableId("empty:$spaceId:$category"),
+                spaceId = spaceId,
+                emptyMessage = if (space == null) strings.openFirst else strings.nothingHere,
+            )
         }
-        return views
+        return items
     }
 
-    private fun taskHeight(
-        task: JSONObject,
-        lines: Int,
-        dense: Boolean,
-    ): Int {
-        if (task.optString("description").trim().isEmpty()) {
-            return if (dense) 32 else 36
+    internal fun collectionItemViews(
+        context: Context,
+        widgetId: Int,
+        item: WidgetCollectionItem,
+        data: JSONObject = snapshot(context),
+    ): RemoteViews {
+        val palette = palette(context, data)
+        val strings = widgetStrings(context, data)
+        return when (item.kind) {
+            WidgetCollectionItem.Kind.DIVIDER -> RemoteViews(
+                context.packageName,
+                if (item.dense) R.layout.sometime_widget_divider_dense
+                else R.layout.sometime_widget_divider,
+            ).also { it.setInt(R.id.widget_divider, "setColorFilter", palette.outline) }
+            WidgetCollectionItem.Kind.HEADING -> RemoteViews(
+                context.packageName,
+                if (item.dense) R.layout.sometime_widget_heading_dense
+                else R.layout.sometime_widget_heading,
+            ).also {
+                it.setTextViewText(R.id.widget_heading, item.label)
+                it.setTextColor(R.id.widget_heading, palette.secondary)
+            }
+            WidgetCollectionItem.Kind.EMPTY -> RemoteViews(
+                context.packageName,
+                R.layout.sometime_widget_empty,
+            ).also {
+                it.setTextViewText(R.id.widget_empty, item.emptyMessage)
+                it.setTextColor(R.id.widget_empty, palette.secondary)
+            }
+            WidgetCollectionItem.Kind.TASK -> taskItemViews(context, widgetId, item, palette, strings)
         }
-        return if (lines == 2) 66 else 52
     }
 
-    private fun allocateRows(
-        groups: List<WidgetGroup>,
-        height: Int,
-        allCategories: Boolean,
-        descriptionLines: Int,
-        dense: Boolean,
-        showHeadings: Boolean,
-    ): List<Int> {
-        val headingHeight = if (showHeadings) {
-            if (dense) 18 else 22
-        } else {
-            0
+    private fun taskItemViews(
+        context: Context,
+        widgetId: Int,
+        item: WidgetCollectionItem,
+        palette: WidgetPalette,
+        strings: WidgetStrings,
+    ): RemoteViews {
+        val task = requireNotNull(item.task)
+        val description = task.optString("description").trim()
+        val withDescription = description.isNotEmpty()
+        val layout = when {
+            withDescription && item.descriptionLines == 2 ->
+                R.layout.sometime_widget_task_description_two_lines
+            withDescription -> R.layout.sometime_widget_task_description
+            item.dense -> R.layout.sometime_widget_task_dense
+            else -> R.layout.sometime_widget_task
         }
-        val dividerHeight = if (dense) 4 else 6
-        val minimum = headingHeight + if (dense) 32 else 36
-        if (groups.isEmpty() || height < minimum) return List(groups.size) { 0 }
-        val counts = MutableList(groups.size) { 0 }
-        var remaining = height
-        val completeSetCost = groups.mapIndexed { index, group ->
-            (if (index == 0) 0 else dividerHeight) + headingHeight +
-                taskHeight(group.tasks.first(), descriptionLines, dense)
-        }.sum()
-        if (allCategories && completeSetCost <= remaining) {
-            for (index in groups.indices) {
-                remaining -= (if (index == 0) 0 else dividerHeight) + headingHeight +
-                    taskHeight(groups[index].tasks.first(), descriptionLines, dense)
-                counts[index] = 1
-            }
-        } else {
-            for (index in groups.indices) {
-                val priorSection = counts.take(index).any { it > 0 }
-                val cost = (if (priorSection) dividerHeight else 0) + headingHeight +
-                    taskHeight(groups[index].tasks.first(), descriptionLines, dense)
-                if (cost > remaining) break
-                remaining -= cost
-                counts[index] = 1
-                if (!allCategories) break
-            }
+        val row = RemoteViews(context.packageName, layout)
+        val title = task.optString("title")
+        val taskId = task.optString("id")
+        row.setTextViewText(R.id.widget_title, title)
+        row.setTextColor(R.id.widget_title, palette.text)
+        row.setInt(R.id.widget_complete, "setColorFilter", palette.outline)
+        row.setContentDescription(R.id.widget_complete, strings.completeTask(title))
+        row.setContentDescription(
+            R.id.widget_task,
+            listOf(title, description.takeIf { withDescription })
+                .filterNotNull().joinToString(". "),
+        )
+        row.setOnClickFillInIntent(
+            R.id.widget_task,
+            Intent().setData(widgetUri(item.spaceId, taskId, item.groupId).build()),
+        )
+        val complete = Intent(context, TaskNotificationReceiver::class.java)
+            .setAction("complete")
+            .setData(Uri.parse("sometime://complete/${Uri.encode(taskId)}"))
+            .putExtra("space", item.spaceId)
+            .putExtra("task", taskId)
+        row.setOnClickPendingIntent(
+            R.id.widget_complete,
+            PendingIntent.getBroadcast(
+                context,
+                pendingIntentCode(widgetId, "complete:${item.spaceId}:$taskId"),
+                complete,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            ),
+        )
+        val minutes = task.optInt("minutes", -1)
+        row.setTextViewText(
+            R.id.widget_time,
+            if (item.showTime && minutes >= 0) "%02d:%02d".format(minutes / 60, minutes % 60)
+            else "",
+        )
+        row.setTextColor(R.id.widget_time, palette.secondary)
+        if (withDescription) {
+            row.setTextViewText(R.id.widget_description, description)
+            row.setTextColor(R.id.widget_description, palette.secondary)
         }
-        var added: Boolean
-        do {
-            added = false
-            for (index in groups.indices) {
-                val next = counts[index]
-                if (next == 0 || next >= groups[index].tasks.size) continue
-                val cost = taskHeight(
-                    groups[index].tasks[next], descriptionLines, dense,
-                )
-                if (cost <= remaining) {
-                    counts[index]++
-                    remaining -= cost
-                    added = true
-                }
-            }
-        } while (added)
-        return counts
+        return row
+    }
+
+    private fun collectionStableId(value: String): Long = value.hashCode().toLong()
+
+    private fun availableTasks(space: JSONObject?): List<JSONObject> {
+        val tasksJson = space?.optJSONArray("tasks")
+        val now = System.currentTimeMillis()
+        return (0 until (tasksJson?.length() ?: 0)).mapNotNull {
+            tasksJson?.optJSONObject(it)
+        }.filter { task ->
+            val available = task.optJSONArray("availableDate")?.let { parts ->
+                Calendar.getInstance().apply {
+                    clear()
+                    set(parts.optInt(0), parts.optInt(1) - 1, parts.optInt(2))
+                }.timeInMillis
+            } ?: task.optLong("available", 0)
+            available <= now
+        }
     }
 }
 

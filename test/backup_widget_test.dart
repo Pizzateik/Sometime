@@ -157,6 +157,39 @@ void main() {
       controller.dispose();
     },
   );
+  test('A space move updates the source and destination widget data', () async {
+    final moved = Todo(
+      id: 'move-me',
+      title: 'Move me',
+      group: TodoGroup.today,
+      createdAt: now,
+    );
+    final memory = MemoryTodoStorage(
+      snapshot: TodoSnapshot(
+        spaces: [
+          TodoSpace(id: 'source', name: 'Source', todos: [moved]),
+          const TodoSpace(id: 'target', name: 'Target', todos: []),
+        ],
+        archive: const [],
+        lastKnownLocalDate: now,
+      ),
+    );
+    final controller = TodoController(storage: memory, clock: () => now);
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    expect(controller.moveTodoToSpace('source', 'move-me', 'target'), isTrue);
+    final sourceTasks =
+        ((widgetSnapshot(controller, 'en', 'light')['spaces'] as List)
+                .first['tasks']
+            as List);
+    final targetTasks =
+        ((widgetSnapshot(controller, 'en', 'light')['spaces'] as List)
+                .last['tasks']
+            as List);
+    expect(sourceTasks, isEmpty);
+    expect(targetTasks.single['id'], 'move-me');
+  });
   test(
     'Import replaces one local bundle and preserves the current entitlement',
     () async {

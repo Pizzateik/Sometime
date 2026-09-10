@@ -46,9 +46,8 @@ class FirstEmptyHomeHint extends StatelessWidget {
                     child: Text(
                       label,
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colors.secondary,
-                        fontWeight: FontWeight.w500,
+                      style: context.appTypography.secondary.copyWith(
+                        fontSize: 14,
                       ),
                     ),
                   ),

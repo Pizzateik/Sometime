@@ -17,9 +17,11 @@ class SometimeIconBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox.square(
     dimension: dimension,
-    child: Align(
-      alignment: Alignment.center,
-      child: Icon(icon, size: size, color: color),
+    child: Center(
+      child: SizedBox.square(
+        dimension: size,
+        child: Icon(icon, size: size, color: color),
+      ),
     ),
   );
 }

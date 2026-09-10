@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:todo_app/models/task_details.dart';
 import 'package:todo_app/models/todo.dart';
 import 'package:todo_app/models/todo_space.dart';
 import 'package:todo_app/models/todo_storage.dart';
@@ -234,5 +235,145 @@ void main() {
           .map((item) => item.id),
       ['d', 'a'],
     );
+    restarted.dispose();
   });
+
+  test(
+    'Moving a task between spaces appends it and preserves its metadata',
+    () async {
+      final now = DateTime(2026, 9, 4, 10);
+      final task = Todo(
+        id: 'task',
+        title: 'Keep this task',
+        group: TodoGroup.soon,
+        createdAt: now,
+        completedAt: null,
+        sortOrder: 0,
+        availableFrom: DateTime(2026, 9, 8),
+        routineId: 'routine',
+        isPinned: true,
+        details: TaskDetails(
+          description: 'Details',
+          date: DateTime(2026, 9, 12),
+          minutes: 870,
+          reminder: ReminderRule.thirtyMinutes,
+          recurrence: const RecurrenceRule(
+            type: RecurrenceType.weekly,
+            weekdays: [1, 3],
+          ),
+        ),
+      );
+      final storage = MemoryTodoStorage(
+        snapshot: TodoSnapshot(
+          spaces: [
+            TodoSpace(id: 'source', name: 'Source', todos: [task]),
+            TodoSpace(
+              id: 'destination',
+              name: 'Destination',
+              todos: [todo('other', TodoGroup.soon, 0)],
+            ),
+          ],
+          archive: const [],
+          lastKnownLocalDate: now,
+        ),
+      );
+      final controller = TodoController(storage: storage, clock: () => now);
+      addTearDown(controller.dispose);
+      await controller.initialize();
+
+      expect(
+        controller.moveTodoToSpace('source', 'task', 'destination'),
+        isTrue,
+      );
+      expect(controller.spaceById('source').todos, isEmpty);
+      final moved = controller.spaceById('destination').todos.last;
+      expect(moved.id, task.id);
+      expect(moved.title, task.title);
+      expect(moved.group, task.group);
+      expect(moved.createdAt, task.createdAt);
+      expect(moved.availableFrom, task.availableFrom);
+      expect(moved.routineId, task.routineId);
+      expect(moved.isPinned, isTrue);
+      expect(moved.details.toJson(), task.details.toJson());
+      expect(moved.sortOrder, 1);
+
+      await controller.flush();
+      final restarted = TodoController(storage: storage, clock: () => now);
+      addTearDown(restarted.dispose);
+      await restarted.initialize();
+      expect(restarted.spaceById('destination').todos.map((item) => item.id), [
+        'other',
+        'task',
+      ]);
+    },
+  );
+
+  test('Moving a task to a missing space is a safe no-op', () async {
+    final storage = MemoryTodoStorage(
+      snapshot: snapshot([todo('task', TodoGroup.today, 0)]),
+    );
+    final controller = TodoController(
+      storage: storage,
+      clock: () => DateTime(2026, 9, 4, 10),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    expect(
+      controller.moveTodoToSpace(TodoSpace.defaultId, 'task', 'missing-space'),
+      isFalse,
+    );
+    expect(controller.spaceById(TodoSpace.defaultId).todos.single.id, 'task');
+  });
+
+  test(
+    'A cross-space move changes the group and insertion index together',
+    () async {
+      final storage = MemoryTodoStorage(
+        snapshot: TodoSnapshot(
+          spaces: [
+            TodoSpace(
+              id: 'source',
+              name: 'Source',
+              todos: [todo('moving', TodoGroup.today, 0)],
+            ),
+            TodoSpace(
+              id: 'target',
+              name: 'Target',
+              todos: [
+                todo('first', TodoGroup.soon, 0),
+                todo('second', TodoGroup.soon, 1),
+              ],
+            ),
+          ],
+          archive: const [],
+          lastKnownLocalDate: DateTime(2026, 9, 4),
+        ),
+      );
+      final controller = TodoController(
+        storage: storage,
+        clock: () => DateTime(2026, 9, 4, 10),
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize();
+
+      expect(
+        controller.moveTodoToSpace(
+          'source',
+          'moving',
+          'target',
+          group: TodoGroup.soon,
+          index: 1,
+        ),
+        isTrue,
+      );
+      expect(controller.spaceById('source').todos, isEmpty);
+      expect(
+        controller
+            .activeTodos('target', TodoGroup.soon)
+            .map((entry) => entry.id),
+        ['first', 'moving', 'second'],
+      );
+    },
+  );
 }

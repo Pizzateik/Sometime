@@ -87,6 +87,11 @@ class AppPalette extends ThemeExtension<AppPalette> {
       scheme?.onPrimary ?? (ink == Colors.black ? Colors.white : Colors.black);
   Color get settingsAvatar => scheme?.primary ?? ink;
   Color get onSettingsAvatar => scheme?.onPrimary ?? background;
+  Color get inactiveSpace {
+    if (scheme != null) return scheme!.onSurfaceVariant;
+    final dark = background.computeLuminance() < 0.18;
+    return Color.lerp(secondary, background, dark ? 0.24 : 0.22)!;
+  }
 
   final Color background;
   final Color surface;
@@ -145,6 +150,102 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
 extension AppThemeContext on BuildContext {
   AppPalette get appColors => Theme.of(this).extension<AppPalette>()!;
+
+  SometimeTypography get appTypography =>
+      SometimeTypography(Theme.of(this).textTheme, appColors);
+}
+
+abstract final class SometimeTypographyWeight {
+  static const display = FontWeight.w700;
+  static const spaceActive = FontWeight.w700;
+  static const spaceInactive = FontWeight.w600;
+  static const sectionTitle = FontWeight.w600;
+  static const taskTitle = FontWeight.w600;
+  static const body = FontWeight.w500;
+  static const taskDescription = FontWeight.w500;
+  static const controlLabel = FontWeight.w600;
+  static const buttonLabel = FontWeight.w600;
+  static const avatarInitial = FontWeight.w700;
+  static const metadata = FontWeight.w500;
+  static const caption = FontWeight.w500;
+}
+
+final class SometimeTypography {
+  const SometimeTypography(this.textTheme, this.colors);
+
+  final TextTheme textTheme;
+  final AppPalette colors;
+
+  TextStyle get display => textTheme.headlineMedium!.copyWith(
+    color: colors.ink,
+    fontWeight: SometimeTypographyWeight.display,
+  );
+
+  TextStyle get spaceActive => textTheme.titleLarge!.copyWith(
+    color: colors.ink,
+    fontWeight: SometimeTypographyWeight.spaceActive,
+  );
+
+  TextStyle get spaceInactive => textTheme.titleLarge!.copyWith(
+    color: colors.inactiveSpace,
+    fontWeight: SometimeTypographyWeight.spaceInactive,
+  );
+
+  TextStyle get sectionTitle => textTheme.titleLarge!.copyWith(
+    color: colors.ink,
+    fontWeight: SometimeTypographyWeight.sectionTitle,
+  );
+
+  TextStyle get taskTitle => textTheme.bodyLarge!.copyWith(
+    color: colors.text,
+    fontWeight: SometimeTypographyWeight.taskTitle,
+  );
+
+  TextStyle get taskDescription => textTheme.labelLarge!.copyWith(
+    color: colors.secondary,
+    fontSize: 12,
+    fontWeight: SometimeTypographyWeight.taskDescription,
+  );
+
+  TextStyle get body => textTheme.bodyLarge!.copyWith(
+    color: colors.text,
+    fontWeight: SometimeTypographyWeight.body,
+  );
+
+  TextStyle get secondary => body.copyWith(color: colors.secondary);
+
+  TextStyle get controlLabel => textTheme.labelLarge!.copyWith(
+    color: colors.text,
+    fontWeight: SometimeTypographyWeight.controlLabel,
+  );
+
+  TextStyle get buttonLabel => textTheme.labelLarge!.copyWith(
+    color: colors.text,
+    fontWeight: SometimeTypographyWeight.buttonLabel,
+  );
+
+  TextStyle get avatarInitial =>
+      buttonLabel.copyWith(fontWeight: SometimeTypographyWeight.avatarInitial);
+
+  TextStyle get segmentedSelected => buttonLabel;
+
+  TextStyle get segmentedUnselected => textTheme.labelLarge!.copyWith(
+    color: colors.secondary,
+    fontWeight: SometimeTypographyWeight.body,
+  );
+
+  TextStyle get metadata => textTheme.labelLarge!.copyWith(
+    color: colors.secondary,
+    fontSize: 11,
+    fontWeight: SometimeTypographyWeight.metadata,
+  );
+
+  TextStyle get caption => textTheme.labelSmall!.copyWith(
+    color: colors.secondary,
+    fontWeight: SometimeTypographyWeight.caption,
+  );
+
+  TextStyle get dangerLabel => buttonLabel.copyWith(color: colors.destructive);
 }
 
 abstract final class AppSpace {
@@ -157,6 +258,7 @@ abstract final class AppSpace {
   static const xxl = 32.0;
   static const section = 40.0;
   static const touch = 48.0;
+  static const spaceHeaderLift = 6.0;
   static const contentWidth = 560.0;
   static const settingsMainAxis = 28.0;
   static const settingsRowIndent = 10.0;
@@ -250,29 +352,36 @@ ThemeData buildAppTheme({
         fontFamily: displayFamily,
         fontSize: 28,
         height: 1.15,
-        fontWeight: FontWeight.w700,
+        fontWeight: SometimeTypographyWeight.display,
         color: palette.ink,
       ),
       titleLarge: TextStyle(
         fontFamily: displayFamily,
         fontSize: 22,
         height: 1.25,
-        fontWeight: FontWeight.w600,
+        fontWeight: SometimeTypographyWeight.sectionTitle,
         color: palette.ink,
       ),
       bodyLarge: TextStyle(
         fontFamily: family,
         fontSize: 16,
         height: 1.5,
-        fontWeight: FontWeight.w500,
+        fontWeight: SometimeTypographyWeight.body,
         color: palette.text,
       ),
       labelLarge: TextStyle(
         fontFamily: family,
         fontSize: 13,
         height: 1.35,
-        fontWeight: FontWeight.w500,
+        fontWeight: SometimeTypographyWeight.body,
         color: palette.text,
+      ),
+      labelSmall: TextStyle(
+        fontFamily: family,
+        fontSize: 11,
+        height: 1.3,
+        fontWeight: SometimeTypographyWeight.caption,
+        color: palette.secondary,
       ),
     ),
     textSelectionTheme: TextSelectionThemeData(
@@ -292,6 +401,10 @@ ThemeData buildAppTheme({
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         minimumSize: const Size(64, 48),
+        textStyle: TextStyle(
+          fontFamily: family,
+          fontWeight: SometimeTypographyWeight.buttonLabel,
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpace.controlRadius),
         ),
@@ -300,8 +413,20 @@ ThemeData buildAppTheme({
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         minimumSize: const Size(64, 48),
+        textStyle: TextStyle(
+          fontFamily: family,
+          fontWeight: SometimeTypographyWeight.buttonLabel,
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpace.controlRadius),
+        ),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        textStyle: TextStyle(
+          fontFamily: family,
+          fontWeight: SometimeTypographyWeight.buttonLabel,
         ),
       ),
     ),

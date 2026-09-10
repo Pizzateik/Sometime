@@ -22,6 +22,39 @@ import '../widgets/first_task_edit_tutorial.dart';
 import '../widgets/todo_section.dart';
 import '../widgets/todo_item.dart';
 
+const _headerToFirstSectionGap = 24.0;
+const _sectionToDividerGap = 8.0;
+const _dividerToSectionGap = 24.0;
+
+@immutable
+class CrossSpaceDropTarget {
+  const CrossSpaceDropTarget({required this.group, required this.index});
+
+  final TodoGroup group;
+  final int index;
+}
+
+@immutable
+class TaskDragStartDetails {
+  const TaskDragStartDetails({
+    required this.sourceSpaceId,
+    required this.todo,
+    required this.pointer,
+    required this.feedbackBounds,
+    required this.grabOffset,
+    required this.sourceGroup,
+    required this.sourceIndex,
+  });
+
+  final String sourceSpaceId;
+  final Todo todo;
+  final Offset pointer;
+  final Rect feedbackBounds;
+  final Offset grabOffset;
+  final TodoGroup sourceGroup;
+  final int sourceIndex;
+}
+
 class TodoSpaceScreen extends StatefulWidget {
   const TodoSpaceScreen({
     required this.spaceId,
@@ -31,6 +64,9 @@ class TodoSpaceScreen extends StatefulWidget {
     this.focusTaskId,
     this.panelTop,
     this.onDragChanged,
+    this.onTaskDragStart,
+    this.onTaskDragUpdate,
+    this.onTaskDragEnd,
     this.onDeleteHoverChanged,
     this.onDeleteMagnetChanged,
     this.onEditorVisibilityChanged,
@@ -39,6 +75,12 @@ class TodoSpaceScreen extends StatefulWidget {
     this.dateFormatter = const TodoDateFormatter(),
     this.morningReminderMinutes = 9 * 60,
     this.showPermanentEmptyState = false,
+    this.draggedTodo,
+    this.dragSourceSpaceId,
+    this.dragDestinationSpaceId,
+    this.dragTargetGroup,
+    this.dragTargetIndex,
+    this.keepDragAlive = false,
     super.key,
   });
 
@@ -49,6 +91,9 @@ class TodoSpaceScreen extends StatefulWidget {
   final Rect? Function()? buttonBounds;
   final double? Function()? panelTop;
   final ValueChanged<bool>? onDragChanged, onDeleteHoverChanged;
+  final ValueChanged<TaskDragStartDetails>? onTaskDragStart;
+  final ValueChanged<Offset>? onTaskDragUpdate;
+  final ValueChanged<bool>? onTaskDragEnd;
   final ValueChanged<Offset>? onDeleteMagnetChanged;
   final ValueChanged<bool>? onEditorVisibilityChanged;
   final String? taskTutorialId;
@@ -56,12 +101,19 @@ class TodoSpaceScreen extends StatefulWidget {
   final TodoDateFormatter dateFormatter;
   final int morningReminderMinutes;
   final bool showPermanentEmptyState;
+  final Todo? draggedTodo;
+  final String? dragSourceSpaceId;
+  final String? dragDestinationSpaceId;
+  final TodoGroup? dragTargetGroup;
+  final int? dragTargetIndex;
+  final bool keepDragAlive;
 
   @override
-  State<TodoSpaceScreen> createState() => _TodoSpaceScreenState();
+  State<TodoSpaceScreen> createState() => TodoSpaceScreenState();
 }
 
-class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
+class TodoSpaceScreenState extends State<TodoSpaceScreen>
+    with AutomaticKeepAliveClientMixin<TodoSpaceScreen> {
   bool _longPressArmed = false;
   bool _deleteHovered = false;
   bool _deleteMagnetEngaged = false;
@@ -69,7 +121,12 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
   final _scrollController = ScrollController();
   bool _composerOpen = false;
   bool _completedExpanded = false;
+  // Keep the pinned layout through the collapse animation. This prevents a
+  // full-height completed list from jumping below the viewport for one frame.
+  bool _completedLayoutExpanded = false;
+  Timer? _completedLayoutTimer;
   final _completedKey = GlobalKey();
+  final _dropSurfaceKey = GlobalKey();
   bool _emptyStateMeasureScheduled = false;
   double _emptyStateHeight = 72;
   bool _pullFromActiveContent = false;
@@ -83,21 +140,17 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
     for (final group in TodoGroup.values) group: GlobalKey(),
   };
   final _rowKeys = <String, GlobalKey>{};
-  Timer? _dragTimer;
   Offset? _pointer;
   Offset? _pointerDown;
   int? _pointerId;
   Offset _grabOffset = Offset.zero;
   Rect? _dragBounds;
   Todo? _dragTodo;
-  TodoGroup? _targetGroup;
-  int _targetIndex = 0;
-  TodoGroup? _sourceGroup;
-  int _sourceIndex = 0;
-  OverlayEntry? _dragOverlay;
   String? _insertedId;
   GlobalKey? _insertedKey;
   late Set<String> _knownTodoIds;
+  late bool _hadActiveTodos;
+  bool _topResetScheduled = false;
 
   @override
   void initState() {
@@ -107,6 +160,8 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
         .todos
         .map((todo) => todo.id)
         .toSet();
+    _hadActiveTodos = _spaceHasActiveTodos();
+    if (widget.activePage && !_hadActiveTodos) _scheduleTopReset();
     final taskTutorialId = widget.taskTutorialId;
     if (taskTutorialId != null) {
       WidgetsBinding.instance.addPostFrameCallback(
@@ -117,8 +172,7 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
 
   @override
   void dispose() {
-    _dragTimer?.cancel();
-    _dragOverlay?.remove();
+    _completedLayoutTimer?.cancel();
     _dissolveOverlay?.remove();
     _scrollController.dispose();
     _rowKeys.clear();
@@ -153,11 +207,14 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
         }
       });
     }
-    final ids = widget.controller
-        .spaceById(widget.spaceId)
-        .todos
-        .map((todo) => todo.id)
-        .toSet();
+    final currentSpace = widget.controller.spaceByIdOrNull(widget.spaceId);
+    final ids =
+        currentSpace?.todos.map((todo) => todo.id).toSet() ?? <String>{};
+    if (_draggingTodoId != null && !ids.contains(_draggingTodoId)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _endDrag(cancel: true);
+      });
+    }
     final added = ids.difference(_knownTodoIds);
     if (added.isNotEmpty) {
       _insertedId = added.last;
@@ -165,7 +222,15 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
       _activeTodoId = null;
     }
     _knownTodoIds = ids;
-    if (oldWidget.activePage && !widget.activePage) {
+    final hasActiveTodos = _spaceHasActiveTodos();
+    if (widget.activePage &&
+        ((!oldWidget.activePage && widget.activePage) ||
+            (_hadActiveTodos && !hasActiveTodos)) &&
+        !hasActiveTodos) {
+      _scheduleTopReset();
+    }
+    _hadActiveTodos = hasActiveTodos;
+    if (oldWidget.activePage && !widget.activePage && !widget.keepDragAlive) {
       final hadTutorial = _visibleTaskTutorialId != null;
       _visibleTaskTutorialId = null;
       if (hadTutorial) {
@@ -175,7 +240,7 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
       }
       _endDrag(cancel: true);
       _activeTodoId = null;
-      _completedExpanded = false;
+      _resetCompletedLayout();
       _pullFromActiveContent = false;
       _collapseArmed = false;
     }
@@ -292,12 +357,52 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
   void _toggle(Todo todo) {
     final completed = widget.controller.completedTodos(widget.spaceId);
     if (!todo.isComplete && completed.isEmpty) {
-      _completedExpanded = false;
+      _resetCompletedLayout();
     } else if (todo.isComplete && completed.length == 1) {
-      _completedExpanded = false;
+      _resetCompletedLayout();
     }
     _activeTodoId = null;
     widget.controller.toggleTodo(widget.spaceId, todo.id);
+  }
+
+  void _resetCompletedLayout() {
+    _completedLayoutTimer?.cancel();
+    _completedLayoutTimer = null;
+    _completedExpanded = false;
+    _completedLayoutExpanded = false;
+  }
+
+  void _setCompletedExpanded(bool expanded) {
+    if (_completedExpanded == expanded) return;
+    setState(() {
+      _completedExpanded = expanded;
+      if (expanded) {
+        _completedLayoutTimer?.cancel();
+        _completedLayoutTimer = null;
+        _completedLayoutExpanded = true;
+      }
+    });
+    if (!expanded) _scheduleCompletedLayoutTransition();
+  }
+
+  void _finishCompletedLayoutTransition() {
+    _completedLayoutTimer = null;
+    if (!mounted || _completedLayoutExpanded == _completedExpanded) return;
+    setState(() => _completedLayoutExpanded = _completedExpanded);
+  }
+
+  void _scheduleCompletedLayoutTransition() {
+    _completedLayoutTimer?.cancel();
+    final duration = AppMotion.duration(context, AppMotion.color);
+    if (duration == Duration.zero) {
+      _finishCompletedLayoutTransition();
+      return;
+    }
+    // Switch back after the shared size animation, not during its first frame.
+    _completedLayoutTimer = Timer(
+      duration + const Duration(milliseconds: 16),
+      _finishCompletedLayoutTransition,
+    );
   }
 
   void _handleTodoTap(Todo todo) {
@@ -341,8 +446,59 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
   Rect? _bounds(GlobalKey? key) {
     final box = key?.currentContext?.findRenderObject();
     if (box is! RenderBox || !box.attached || !box.hasSize) return null;
-    return box.localToGlobal(Offset.zero) & box.size;
+    final bounds = box.localToGlobal(Offset.zero) & box.size;
+    return bounds.isFinite ? bounds : null;
   }
+
+  CrossSpaceDropTarget? resolveTaskDropTarget(
+    Offset position,
+    TodoGroup sourceGroup,
+    int sourceIndex,
+    String draggedTodoId,
+  ) {
+    final space = widget.controller.spaceByIdOrNull(widget.spaceId);
+    if (space == null) return null;
+    final pageBounds = _bounds(_dropSurfaceKey);
+    if (pageBounds == null || !pageBounds.contains(position)) return null;
+    final sections = [
+      for (final group in TodoGroup.values)
+        (group: group, bounds: _bounds(_sectionKeys[group])),
+    ];
+    if (sections.any((entry) => entry.bounds == null)) return null;
+    final firstSection = sections.first.bounds!;
+    if (position.dy < firstSection.top) {
+      final count = widget.controller
+          .activeTodos(widget.spaceId, sourceGroup)
+          .where((todo) => todo.id != draggedTodoId)
+          .length;
+      return CrossSpaceDropTarget(
+        group: sourceGroup,
+        index: sourceIndex.clamp(0, count),
+      );
+    }
+    var group = sections.first.group;
+    for (var i = 1; i < sections.length; i++) {
+      final boundary =
+          (sections[i - 1].bounds!.bottom + sections[i].bounds!.top) / 2;
+      if (position.dy >= boundary) group = sections[i].group;
+    }
+    final todos = widget.controller
+        .activeTodos(widget.spaceId, group)
+        .where((todo) => todo.id != draggedTodoId);
+    var index = 0;
+    for (final todo in todos) {
+      final bounds = _bounds(_rowKeys[todo.id]);
+      if (bounds != null && position.dy > bounds.center.dy) index++;
+    }
+    return CrossSpaceDropTarget(group: group, index: index);
+  }
+
+  void updateExternalDrag(Offset position) {
+    if (!_scrollController.hasClients) return;
+    _autoScroll(position);
+  }
+
+  void cancelActiveDrag() => _endDrag(cancel: true);
 
   void _startDrag(Todo todo) {
     if (_draggingTodoId != null || todo.isComplete) return;
@@ -351,62 +507,39 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
     _dragTodo = todo;
     _pointer = _pointerDown ?? _dragBounds!.center;
     _grabOffset = _pointer! - _dragBounds!.topLeft;
-    _targetGroup = todo.group;
-    _targetIndex = widget.controller
+    final sourceIndex = widget.controller
         .activeTodos(widget.spaceId, todo.group)
         .indexWhere((entry) => entry.id == todo.id);
-    _sourceGroup = todo.group;
-    _sourceIndex = _targetIndex;
     setState(() {
       _activeTodoId = todo.id;
       _draggingTodoId = todo.id;
     });
     widget.onDragChanged?.call(true);
-    _dragOverlay = OverlayEntry(
-      builder: (context) {
-        final position = _pointer! - _grabOffset;
-        return Positioned(
-          left: position.dx,
-          top: position.dy,
-          width: _dragBounds!.width,
-          child: IgnorePointer(
-            child: Material(
-              color: Colors.transparent,
-              clipBehavior: Clip.none,
-              child: TodoItem(
-                todo: todo,
-                active: true,
-                dragging: true,
-                deleteHovered: _deleteHovered,
-                onToggle: () {},
-              ),
-            ),
-          ),
-        );
-      },
+    widget.onTaskDragStart?.call(
+      TaskDragStartDetails(
+        sourceSpaceId: widget.spaceId,
+        todo: todo,
+        pointer: _pointer!,
+        feedbackBounds: _dragBounds!,
+        grabOffset: _grabOffset,
+        sourceGroup: todo.group,
+        sourceIndex: sourceIndex,
+      ),
     );
-    Overlay.of(context).insert(_dragOverlay!);
-    _dragTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
-      if (_pointer == null || !mounted || _deleteHovered) return;
-      _autoScroll(_pointer!);
-      _resolveTarget(_pointer!);
-    });
   }
 
   void _updateDrag(Offset position) {
     if (_draggingTodoId == null) return;
     _pointer = position;
-    _dragOverlay?.markNeedsBuild();
     final target = widget.buttonBounds?.call()?.inflate(28);
     final hovered = target?.contains(position) ?? false;
     if (_deleteHovered != hovered) {
       _deleteHovered = hovered;
       widget.onDeleteHoverChanged?.call(hovered);
-      _dragOverlay?.markNeedsBuild();
       if (hovered) AppHaptics.strong();
     }
     _updateDeleteMagnet(position, target);
-    if (!hovered) _resolveTarget(position);
+    widget.onTaskDragUpdate?.call(position);
   }
 
   void _updateDeleteMagnet(Offset position, Rect? target) {
@@ -436,71 +569,23 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
     widget.onDeleteMagnetChanged?.call(direction / length * (2.5 + 4.5 * pull));
   }
 
-  void _resolveTarget(Offset position) {
-    final sections = [
-      for (final group in TodoGroup.values)
-        (group: group, bounds: _bounds(_sectionKeys[group])),
-    ];
-    if (sections.any((entry) => entry.bounds == null)) return;
-    var group = sections.first.group;
-    for (var i = 1; i < sections.length; i++) {
-      final boundary =
-          (sections[i - 1].bounds!.bottom + sections[i].bounds!.top) / 2;
-      if (position.dy >= boundary) group = sections[i].group;
-    }
-    final todos = widget.controller
-        .activeTodos(widget.spaceId, group)
-        .where((todo) => todo.id != _draggingTodoId)
-        .toList();
-    var index = 0;
-    for (final todo in todos) {
-      final bounds = _bounds(_rowKeys[todo.id]);
-      if (bounds != null && position.dy > bounds.center.dy) index++;
-    }
-    final categoryChanged = _targetGroup != null && _targetGroup != group;
-    if (_targetGroup == group && _targetIndex == index) return;
-    setState(() {
-      _targetGroup = group;
-      _targetIndex = index;
-    });
-    if (categoryChanged) AppHaptics.selection();
-  }
-
   void _endDrag({bool cancel = false}) {
     if (_draggingTodoId == null) return;
     final todo = _dragTodo!;
     final delete = !cancel && _deleteHovered;
     if (delete) _showDissolve(todo);
-    final group = _targetGroup!;
-    final moved = group != _sourceGroup || _targetIndex != _sourceIndex;
-    var index = _targetIndex;
-    final source = widget.controller.activeTodos(widget.spaceId, todo.group);
-    final oldIndex = source.indexWhere((entry) => entry.id == todo.id);
-    if (todo.group == group && oldIndex <= index) index++;
-    _dragTimer?.cancel();
-    _dragOverlay?.remove();
-    _dragOverlay = null;
     setState(() {
       _draggingTodoId = null;
       _dragTodo = null;
       _pointer = null;
-      if (delete || (!cancel && moved)) _activeTodoId = null;
+      if (delete || !cancel) _activeTodoId = null;
     });
     _deleteHovered = false;
     _deleteMagnetEngaged = false;
+    widget.onTaskDragEnd?.call(cancel);
     widget.onDeleteHoverChanged?.call(false);
     widget.onDeleteMagnetChanged?.call(Offset.zero);
     widget.onDragChanged?.call(false);
-    if (delete) {
-      widget.controller.deleteTodo(widget.spaceId, todo.id);
-    } else if (!cancel && moved) {
-      widget.controller.moveTodo(
-        widget.spaceId,
-        todo.id,
-        group: group,
-        index: index,
-      );
-    }
   }
 
   void _showDissolve(Todo todo) {
@@ -562,12 +647,31 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
 
   List<Todo> _visibleOrder(TodoGroup group) {
     final todos = widget.controller.activeTodos(widget.spaceId, group).toList();
-    if (_dragTodo == null) return todos;
-    todos.removeWhere((todo) => todo.id == _draggingTodoId);
-    if (_targetGroup == group) {
-      todos.insert(_targetIndex.clamp(0, todos.length), _dragTodo!);
+    final draggedTodo = widget.draggedTodo ?? _dragTodo;
+    if (draggedTodo == null) return todos;
+    final showsDrag =
+        widget.dragSourceSpaceId == widget.spaceId ||
+        widget.dragDestinationSpaceId == widget.spaceId;
+    if (!showsDrag) return todos;
+    todos.removeWhere((todo) => todo.id == draggedTodo.id);
+    if (widget.dragDestinationSpaceId == widget.spaceId &&
+        widget.dragTargetGroup == group) {
+      todos.insert(
+        (widget.dragTargetIndex ?? 0).clamp(0, todos.length),
+        draggedTodo,
+      );
     }
     return todos;
+  }
+
+  String? get _visibleDraggingTodoId {
+    final draggedTodo = widget.draggedTodo;
+    if (draggedTodo == null) return _draggingTodoId;
+    if (widget.dragSourceSpaceId == widget.spaceId ||
+        widget.dragDestinationSpaceId == widget.spaceId) {
+      return draggedTodo.id;
+    }
+    return null;
   }
 
   void _revealInsertedTodo() {
@@ -611,18 +715,37 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
     });
   }
 
+  bool _spaceHasActiveTodos() => TodoGroup.values.any(
+    (group) => widget.controller.activeTodos(widget.spaceId, group).isNotEmpty,
+  );
+
+  void _scheduleTopReset() {
+    if (_topResetScheduled) return;
+    _topResetScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _topResetScheduled = false;
+      if (!mounted || !_scrollController.hasClients || _spaceHasActiveTodos()) {
+        return;
+      }
+      final position = _scrollController.position;
+      if ((position.pixels - position.minScrollExtent).abs() < 0.5) return;
+      // Empty active categories always start at the top of the page.
+      position.jumpTo(position.minScrollExtent);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final currentTodos = widget.controller.spaceById(widget.spaceId).todos;
+    super.build(context);
+    final currentSpace = widget.controller.spaceByIdOrNull(widget.spaceId);
+    if (currentSpace == null) return const SizedBox.shrink();
+    final currentTodos = currentSpace.todos;
     if (_rowKeys.isNotEmpty) {
       final currentIds = {for (final todo in currentTodos) todo.id};
       _rowKeys.removeWhere((id, _) => !currentIds.contains(id));
     }
     final completed = widget.controller.completedTodos(widget.spaceId);
-    final hasActiveTodos = TodoGroup.values.any(
-      (group) =>
-          widget.controller.activeTodos(widget.spaceId, group).isNotEmpty,
-    );
+    final hasActiveTodos = _spaceHasActiveTodos();
     final showEmptyState = widget.showPermanentEmptyState && !hasActiveTodos;
     if (showEmptyState) _scheduleEmptyStateMeasurement();
     final date = widget.dateFormatter.format(
@@ -636,6 +759,7 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
             .clamp(1.0, AppSpace.contentWidth - 32)
             .toDouble();
     return Align(
+      key: _dropSurfaceKey,
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: AppSpace.contentWidth),
@@ -680,9 +804,10 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
                   if (event.pointer != _pointerId) return;
                   if (_collapseArmed && _draggingTodoId == null) {
                     setState(() {
-                      _completedExpanded = false;
                       _collapseArmed = false;
+                      _completedExpanded = false;
                     });
+                    _scheduleCompletedLayoutTransition();
                   }
                   _pullFromActiveContent = false;
                   _endDrag();
@@ -711,7 +836,12 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
                           ),
                     slivers: [
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(16, 32, 16, 0),
+                        padding: const EdgeInsets.fromLTRB(
+                          16,
+                          _headerToFirstSectionGap,
+                          16,
+                          0,
+                        ),
                         sliver: SliverToBoxAdapter(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -725,7 +855,7 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
                                       : null,
                                   todos: _visibleOrder(group),
                                   activeTodoId: _activeTodoId,
-                                  draggingTodoId: _draggingTodoId,
+                                  draggingTodoId: _visibleDraggingTodoId,
                                   isExiting:
                                       widget.controller.isCompletionExiting,
                                   onToggle: _handleTodoTap,
@@ -759,38 +889,50 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
                                   tutorialLink: _tutorialLink,
                                 ),
                                 if (group != TodoGroup.someday) ...[
-                                  const SizedBox(height: AppSpace.md),
+                                  const SizedBox(height: _sectionToDividerGap),
                                   const Padding(
                                     padding: EdgeInsets.symmetric(
                                       horizontal: AppSpace.md,
                                     ),
                                     child: DashedDivider(),
                                   ),
-                                  const SizedBox(height: AppSpace.xxl),
+                                  const SizedBox(height: _dividerToSectionGap),
                                 ],
                               ],
                             ],
                           ),
                         ),
                       ),
+                      // Keep the measured empty area outside the pinned child.
+                      // Its first layout must not cause a scroll correction.
                       if (showEmptyState)
                         SliverToBoxAdapter(
                           child: SizedBox(
                             height: _emptyStateHeight,
-                            child: Center(
-                              child: Text(
-                                context.strings.emptySpace,
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: context.appColors.secondary,
+                            // The hint is decorative. Hide it before completed
+                            // rows expand into the measured empty area.
+                            child: _completedLayoutExpanded
+                                ? const SizedBox.shrink()
+                                : Center(
+                                    child: Text(
+                                      context.strings.emptySpace,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: context.appColors.secondary,
+                                          ),
                                     ),
-                              ),
-                            ),
+                                  ),
                           ),
                         ),
                       if (completed.isNotEmpty)
                         BottomPinnedSliver(
                           bottomInset: AppSpace.xl,
+                          // Completed tasks can use the measured empty area.
+                          // The page stays at its top scroll position.
+                          overlapBefore:
+                              showEmptyState && _completedLayoutExpanded,
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
                             child: CompletedSection(
@@ -798,14 +940,11 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
                               collapseArmed: _collapseArmed,
                               todos: completed,
                               expanded: _completedExpanded,
-                              dragging: _draggingTodoId != null,
+                              dragging: _visibleDraggingTodoId != null,
                               noticeVisible: widget.controller.canUndoDeletion,
                               onToggleExpanded: () {
                                 _clearActiveTodo();
-                                setState(
-                                  () =>
-                                      _completedExpanded = !_completedExpanded,
-                                );
+                                _setCompletedExpanded(!_completedExpanded);
                               },
                               onToggleTodo: _toggle,
                             ),
@@ -848,6 +987,9 @@ class _TodoSpaceScreenState extends State<TodoSpaceScreen> {
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }
 
 class _CompletedScrollPhysics extends BouncingScrollPhysics {

@@ -97,6 +97,9 @@ class TodoController extends ChangeNotifier {
       _spaces.where((space) => space.id == spaceId).firstOrNull ??
       _spaces.first;
 
+  TodoSpace? spaceByIdOrNull(String spaceId) =>
+      _spaces.where((space) => space.id == spaceId).firstOrNull;
+
   List<Todo> activeTodos(String spaceId, TodoGroup group) =>
       List.unmodifiable(_orderedActive(spaceById(spaceId).todos, group));
 
@@ -332,6 +335,72 @@ class TodoController extends ChangeNotifier {
     });
   }
 
+  bool moveTodoToSpace(
+    String sourceSpaceId,
+    String todoId,
+    String destinationSpaceId, {
+    TodoGroup? group,
+    int? index,
+  }) {
+    if (sourceSpaceId == destinationSpaceId) return false;
+    final source = spaceByIdOrNull(sourceSpaceId);
+    final destination = spaceByIdOrNull(destinationSpaceId);
+    if (source == null || destination == null) return false;
+    if (destination.todos.any((todo) => todo.id == todoId)) return false;
+    final todo = source.todos.where((todo) => todo.id == todoId).firstOrNull;
+    if (todo == null) return false;
+
+    final destinationGroup = group ?? todo.group;
+    final destinationGroupTodos = _orderedActive(
+      destination.todos,
+      destinationGroup,
+      includeFuture: true,
+    );
+    final destinationOrder = (index ?? destinationGroupTodos.length).clamp(
+      0,
+      destinationGroupTodos.length,
+    );
+    final moved = destinationGroup == todo.group
+        ? todo.withSortOrder(destinationOrder)
+        : todo.update(
+            title: todo.title,
+            group: destinationGroup,
+            sortOrder: destinationOrder,
+            details: todo.details,
+            isPinned: todo.isPinned,
+          );
+    final sourceTodos = _normalizedTodos(
+      source.todos.where((entry) => entry.id != todoId).toList(),
+    );
+    destinationGroupTodos.insert(destinationOrder, moved);
+    final destinationReplacements = <String, Todo>{};
+    for (var i = 0; i < destinationGroupTodos.length; i++) {
+      destinationReplacements[destinationGroupTodos[i].id] =
+          destinationGroupTodos[i].withSortOrder(i);
+    }
+    final destinationTodos = _normalizedTodos([
+      for (final entry in destination.todos)
+        destinationReplacements[entry.id] ?? entry,
+      if (!destination.todos.any((entry) => entry.id == todoId))
+        destinationReplacements[todoId]!,
+    ]);
+
+    _stateRevision++;
+    _spaces = [
+      for (final space in _spaces)
+        if (space.id == sourceSpaceId)
+          space.withTodos(sourceTodos)
+        else if (space.id == destinationSpaceId)
+          space.withTodos(destinationTodos)
+        else
+          space,
+    ];
+    _notify();
+    _scheduleDayCheck();
+    unawaited(_persist());
+    return true;
+  }
+
   void toggleTodo(String spaceId, String todoId) {
     final now = clock();
     final current = spaceById(spaceId).todos
@@ -389,7 +458,9 @@ class TodoController extends ChangeNotifier {
     final todo = spaceById(spaceId).todos
         .where((todo) => todo.id == todoId)
         .firstOrNull;
-    if (todo != null && todo.completedPending) _scheduleCompletion(spaceId, todo);
+    if (todo != null && todo.completedPending) {
+      _scheduleCompletion(spaceId, todo);
+    }
   }
 
   void _resumeCompletions() {
@@ -625,7 +696,7 @@ class TodoController extends ChangeNotifier {
   List<Todo> _normalizedTodos(List<Todo> todos, {VoidCallback? onChange}) {
     final replacements = <String, Todo>{};
     for (final group in TodoGroup.values) {
-      final ordered = _orderedActive(todos, group);
+      final ordered = _orderedActive(todos, group, includeFuture: true);
       for (var i = 0; i < ordered.length; i++) {
         if (ordered[i].sortOrder == i) continue;
         replacements[ordered[i].id] = ordered[i].withSortOrder(i);
@@ -653,15 +724,6 @@ class TodoController extends ChangeNotifier {
       }
     }
     indexed.sort((first, second) {
-      final firstPlanned = first.todo.details.isScheduled;
-      final secondPlanned = second.todo.details.isScheduled;
-      if (firstPlanned != secondPlanned) return firstPlanned ? -1 : 1;
-      if (firstPlanned) {
-        final timeOrder = second.todo.details
-            .sortTime(second.todo.createdAt)
-            .compareTo(first.todo.details.sortTime(first.todo.createdAt));
-        if (timeOrder != 0) return timeOrder;
-      }
       final order = first.todo.sortOrder.compareTo(second.todo.sortOrder);
       return order != 0 ? order : first.index.compareTo(second.index);
     });

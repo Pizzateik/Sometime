@@ -286,10 +286,7 @@ class _PinCapsule extends StatelessWidget {
                 shortTitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: context.appColors.text,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: context.appTypography.controlLabel,
               ),
             ),
           ],

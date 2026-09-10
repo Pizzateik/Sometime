@@ -201,8 +201,9 @@ class TaskPlanningFields extends StatelessWidget {
   Widget build(BuildContext context) {
     final strings = context.strings;
     final rule = value.recurrence;
-    final labelStyle = Theme.of(context).textTheme.titleMedium
-        ?.copyWith(fontSize: 16, fontWeight: FontWeight.w600);
+    final labelStyle = context.appTypography.controlLabel.copyWith(
+      fontSize: 16,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -358,8 +359,9 @@ class TaskPlanningFields extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(
                       routineLabel(context, rule),
-                      style: Theme.of(context).textTheme.labelLarge
-                          ?.copyWith(color: context.appColors.secondary),
+                      style: context.appTypography.taskDescription.copyWith(
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -404,8 +406,7 @@ class _PinOption extends StatelessWidget {
         ),
       ),
       label: strings.pinToNotification,
-      labelStyle: Theme.of(context).textTheme.titleMedium
-          ?.copyWith(fontSize: 16, fontWeight: FontWeight.w600),
+      labelStyle: context.appTypography.controlLabel.copyWith(fontSize: 16),
       trailing: Pressable(
         label: strings.pinToNotification,
         checked: isPinned,
@@ -435,16 +436,9 @@ class _PlanningOptionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.center,
     children: [
-      SizedBox(
-        width: 28,
-        height: 48,
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: Padding(padding: const EdgeInsets.only(top: 8), child: icon),
-        ),
-      ),
+      SizedBox(width: 28, height: 48, child: Center(child: icon)),
       const SizedBox(width: 8),
       Expanded(
         child: ConstrainedBox(
@@ -514,11 +508,15 @@ class _Pill extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: active
-                      ? context.appColors.onStrongSelection
-                      : context.appColors.text,
-                ),
+                style:
+                    (active
+                            ? context.appTypography.segmentedSelected
+                            : context.appTypography.segmentedUnselected)
+                        .copyWith(
+                          color: active
+                              ? context.appColors.onStrongSelection
+                              : context.appColors.text,
+                        ),
               ),
             ),
             if (onClear != null)
@@ -654,11 +652,15 @@ class _DayButton extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: selected
-              ? context.appColors.onStrongSelection
-              : context.appColors.text,
-        ),
+        style:
+            (selected
+                    ? context.appTypography.segmentedSelected
+                    : context.appTypography.segmentedUnselected)
+                .copyWith(
+                  color: selected
+                      ? context.appColors.onStrongSelection
+                      : context.appColors.text,
+                ),
       ),
     ),
   );

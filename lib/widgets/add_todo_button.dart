@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../app/app_theme.dart';
 import '../app/app_strings.dart';
 import 'pressable.dart';
-import 'sometime_icon_box.dart';
+import 'sometime_action_icon.dart';
 
 class AddTodoButton extends StatelessWidget {
   const AddTodoButton({
@@ -80,8 +80,8 @@ class AddTodoButton extends StatelessWidget {
                     scale: dragging ? 0.7 : 1,
                     alignment: Alignment.center,
                     duration: AppMotion.duration(context, AppMotion.press),
-                    child: SometimeIconBox(
-                      icon: SometimeIcons.plus,
+                    child: SometimeActionIconBox(
+                      glyph: SometimeActionGlyph.plus,
                       color: buttonInk,
                       size: 26,
                     ),
@@ -103,10 +103,8 @@ class AddTodoButton extends StatelessWidget {
                         children: [
                           Text(
                             context.strings.delete,
-                            style: TextStyle(
-                              color: context.appColors.destructive,
+                            style: context.appTypography.dangerLabel.copyWith(
                               fontSize: 14,
-                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           SizedBox(width: 10),

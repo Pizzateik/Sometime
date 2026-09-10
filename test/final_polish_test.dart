@@ -4,10 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:todo_app/app/app_config.dart';
 import 'package:todo_app/app/app_theme.dart';
 import 'package:todo_app/app/sometime_icons.dart';
+import 'package:todo_app/models/task_details.dart';
 import 'package:todo_app/widgets/add_todo_button.dart';
 import 'package:todo_app/widgets/add_todo_sheet.dart';
 import 'package:todo_app/widgets/sometime_input.dart';
+import 'package:todo_app/widgets/sometime_action_icon.dart';
 import 'package:todo_app/widgets/sometime_segmented_control.dart';
+import 'package:todo_app/widgets/task_planning_fields.dart';
 import 'package:todo_app/models/todo.dart';
 
 import 'support/memory_todo_storage.dart';
@@ -177,5 +180,64 @@ void main() {
   });
   test('The pin uses regular and fill variants', () {
     expect(SometimeIcons.pushPin, isNot(SometimeIcons.pushPinActive));
+  });
+
+  testWidgets('Action icons use fixed centered geometry', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: const Scaffold(
+          body: Center(
+            child: SometimeActionIconBox(
+              key: ValueKey('plus-action-icon'),
+              glyph: SometimeActionGlyph.plus,
+              size: 26,
+              color: Colors.black,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getSize(find.byKey(const ValueKey('plus-action-icon'))),
+      const Size.square(32),
+    );
+    expect(
+      tester.getSize(
+        find.descendant(
+          of: find.byKey(const ValueKey('plus-action-icon')),
+          matching: find.byType(CustomPaint),
+        ),
+      ),
+      const Size.square(26),
+    );
+  });
+
+  testWidgets('Task planning icons align with their labels', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(
+          brightness: Brightness.light,
+          background: Colors.white,
+        ),
+        home: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(24),
+            child: TaskPlanningFields(
+              value: const TaskDetails(),
+              isPinned: false,
+              onChanged: (_) {},
+              onPinChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final icon = find.byIcon(SometimeIcons.arrowsClockwise);
+    final label = find.text('Routine');
+    expect(icon, findsOneWidget);
+    expect(label, findsOneWidget);
+    expect(tester.getCenter(icon).dy, closeTo(tester.getCenter(label).dy, 0.1));
   });
 }

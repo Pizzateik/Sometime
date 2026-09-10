@@ -112,7 +112,7 @@ class CompletedSection extends StatelessWidget {
                               : context.strings.completed,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleLarge,
+                          style: context.appTypography.sectionTitle,
                         ),
                       ),
                       const SizedBox(width: 8),
