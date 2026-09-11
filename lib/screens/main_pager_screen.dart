@@ -24,6 +24,7 @@ import '../widgets/add_todo_button.dart';
 import '../widgets/add_todo_sheet.dart';
 import '../widgets/first_empty_home_hint.dart';
 import '../widgets/sometime_input.dart';
+import '../widgets/sometime_icon_box.dart';
 import '../widgets/space_management_tutorial.dart';
 import '../widgets/sometime_action_icon.dart';
 import '../widgets/todo_item.dart';
@@ -114,7 +115,7 @@ class _MainPagerScreenState extends State<MainPagerScreen>
   bool _spaceTutorialPending = false;
   bool _spaceTutorialMeasurementScheduled = false;
   Rect? _spaceTutorialTargetRect;
-  static const crossSpaceDwellDuration = Duration(milliseconds: 1050);
+  static const crossSpaceDwellDuration = Duration(milliseconds: 1100);
   Timer? _spaceDwellTimer;
   String? _hoveredSpaceId;
   bool _dragOverSpaceHeader = false;
@@ -542,6 +543,7 @@ class _MainPagerScreenState extends State<MainPagerScreen>
     }
     if (!validDrop) return;
     if (drag.destinationSpaceId != drag.sourceSpaceId) {
+      AppHaptics.medium();
       widget.todoController.moveTodoToSpace(
         drag.sourceSpaceId,
         drag.todo.id,
@@ -555,6 +557,7 @@ class _MainPagerScreenState extends State<MainPagerScreen>
         drag.targetGroup != drag.sourceGroup ||
         drag.targetIndex != drag.sourceIndex;
     if (!moved) return;
+    AppHaptics.medium();
     var index = drag.targetIndex;
     if (drag.targetGroup == drag.sourceGroup && drag.sourceIndex <= index) {
       index++;
@@ -1493,14 +1496,21 @@ class _SharedHeader extends StatelessWidget {
                             ),
                             child: Center(
                               child: settingsController.value.initial == null
-                                  ? Icon(
-                                      SometimeIcons.user,
+                                  ? SometimeIconBox(
+                                      key: const ValueKey(
+                                        'profile-fallback-icon',
+                                      ),
+                                      icon: SometimeIcons.user,
                                       size: 20,
+                                      dimension: 20,
+                                      // The glyph ink center is 1.9 logical
+                                      // pixels left of its advance center.
+                                      opticalOffset: const Offset(2, 0),
                                       color: Color.lerp(
                                         colors.secondary,
                                         colors.onSettingsAvatar,
                                         settingsProgress,
-                                      ),
+                                      )!,
                                     )
                                   : Text(
                                       settingsController.value.initial!,

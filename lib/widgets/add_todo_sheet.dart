@@ -14,6 +14,7 @@ import '../models/task_details.dart';
 import '../utils/natural_datetime_parser.dart';
 import 'add_todo_button.dart';
 import 'pressable.dart';
+import 'recognized_text_field.dart';
 import 'todo_group_picker.dart';
 import 'task_planning_fields.dart';
 import 'sometime_action_icon.dart';
@@ -130,6 +131,8 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
   bool _isPinned = false;
   int _datePulse = 0;
   int _timePulse = 0;
+  List<TextRange> _titleRecognitionRanges = const [];
+  List<TextRange> _descriptionRecognitionRanges = const [];
   final _focusNode = FocusNode(debugLabel: 'Task title');
   late TodoGroup _group;
   bool _closing = false;
@@ -206,7 +209,18 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
   }
 
   void _parseDateTime() {
-    if (!mounted || (_dateLocked && _timeLocked)) return;
+    if (!mounted) return;
+    if (_dateLocked && _timeLocked) {
+      if (_titleRecognitionRanges.isEmpty &&
+          _descriptionRecognitionRanges.isEmpty) {
+        return;
+      }
+      setState(() {
+        _titleRecognitionRanges = const [];
+        _descriptionRecognitionRanges = const [];
+      });
+      return;
+    }
     final suggestion = NaturalDateTimeParser.parse(
       title: _textController.text,
       description: _descriptionController.text,
@@ -228,7 +242,25 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
     }
     final dateChanged = !_sameDate(date, _details.date);
     final timeChanged = minutes != _details.minutes;
-    if (!dateChanged && !timeChanged) return;
+    final activeSourceRanges = <NaturalDateTimeSourceRange>[
+      if (!_dateLocked && suggestion.date != null) ?suggestion.dateSourceRange,
+      if (!_timeLocked && suggestion.minutes != null)
+        ?suggestion.timeSourceRange,
+    ];
+    final titleRanges = _rangesFor(
+      NaturalDateTimeSource.title,
+      _textController.text,
+      activeSourceRanges,
+    );
+    final descriptionRanges = _rangesFor(
+      NaturalDateTimeSource.description,
+      _descriptionController.text,
+      activeSourceRanges,
+    );
+    final rangesChanged =
+        !_sameRanges(titleRanges, _titleRecognitionRanges) ||
+        !_sameRanges(descriptionRanges, _descriptionRecognitionRanges);
+    if (!dateChanged && !timeChanged && !rangesChanged) return;
     setState(() {
       if (dateChanged) _datePulse++;
       if (timeChanged) _timePulse++;
@@ -239,7 +271,26 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
         recurrence: _details.recurrence,
         reminder: _details.reminder,
       );
+      _titleRecognitionRanges = titleRanges;
+      _descriptionRecognitionRanges = descriptionRanges;
     });
+  }
+
+  static List<TextRange> _rangesFor(
+    NaturalDateTimeSource source,
+    String text,
+    List<NaturalDateTimeSourceRange> ranges,
+  ) => NaturalDateTimeParser.mergeSourceRanges(
+    text: text,
+    ranges: ranges.where((range) => range.source == source),
+  ).map((range) => TextRange(start: range.start, end: range.end)).toList();
+
+  static bool _sameRanges(List<TextRange> first, List<TextRange> second) {
+    if (first.length != second.length) return false;
+    for (var index = 0; index < first.length; index++) {
+      if (first[index] != second[index]) return false;
+    }
+    return true;
   }
 
   static bool _sameDate(DateTime? first, DateTime? second) {
@@ -248,19 +299,27 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
   }
 
   void _lockDate() {
-    if (mounted) setState(() => _dateLocked = true);
+    if (!mounted) return;
+    setState(() => _dateLocked = true);
+    _parseDateTime();
   }
 
   void _unlockDate() {
-    if (mounted) setState(() => _dateLocked = false);
+    if (!mounted) return;
+    setState(() => _dateLocked = false);
+    _parseDateTime();
   }
 
   void _lockTime() {
-    if (mounted) setState(() => _timeLocked = true);
+    if (!mounted) return;
+    setState(() => _timeLocked = true);
+    _parseDateTime();
   }
 
   void _unlockTime() {
-    if (mounted) setState(() => _timeLocked = false);
+    if (!mounted) return;
+    setState(() => _timeLocked = false);
+    _parseDateTime();
   }
 
   @override
@@ -466,6 +525,11 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
 
   Widget _buildForm(BuildContext context) {
     final colors = context.appColors;
+    final titleStyle = context.appTypography.taskTitle.copyWith(
+      fontSize: 26,
+      height: 1.35,
+    );
+    final descriptionStyle = context.appTypography.secondary;
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -530,33 +594,41 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                               Expanded(
                                 child: Padding(
                                   padding: const EdgeInsets.only(top: 8),
-                                  child: TextField(
-                                    key: const ValueKey('todo-title-field'),
+                                  child: RecognizedTextField(
                                     controller: _textController,
-                                    focusNode: _focusNode,
-                                    minLines: 1,
-                                    maxLines: 3,
-                                    textCapitalization:
-                                        TextCapitalization.sentences,
-                                    textInputAction: TextInputAction.done,
-                                    keyboardType: TextInputType.text,
-                                    keyboardAppearance: Theme.of(context)
-                                        .brightness,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter
-                                          .singleLineFormatter,
-                                    ],
-                                    cursorWidth: 1.5,
-                                    cursorRadius: const Radius.circular(1),
-                                    style: context.appTypography.taskTitle
-                                        .copyWith(fontSize: 26, height: 1.35),
-                                    decoration: InputDecoration(
-                                      hintText: context.strings.title,
-                                      hintStyle: TextStyle(
-                                        color: colors.secondary,
-                                      ),
+                                    ranges: _titleRecognitionRanges,
+                                    textStyle: titleStyle,
+                                    highlightColor: colors.recognitionHighlight,
+                                    highlightKey: const ValueKey(
+                                      'todo-title-recognition-highlight',
                                     ),
-                                    onSubmitted: (_) => _focusNode.unfocus(),
+                                    child: TextField(
+                                      key: const ValueKey('todo-title-field'),
+                                      controller: _textController,
+                                      focusNode: _focusNode,
+                                      minLines: 1,
+                                      maxLines: 3,
+                                      textCapitalization:
+                                          TextCapitalization.sentences,
+                                      textInputAction: TextInputAction.done,
+                                      keyboardType: TextInputType.text,
+                                      keyboardAppearance: Theme.of(context)
+                                          .brightness,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter
+                                            .singleLineFormatter,
+                                      ],
+                                      cursorWidth: 1.5,
+                                      cursorRadius: const Radius.circular(1),
+                                      style: titleStyle,
+                                      decoration: InputDecoration(
+                                        hintText: context.strings.title,
+                                        hintStyle: TextStyle(
+                                          color: colors.secondary,
+                                        ),
+                                      ),
+                                      onSubmitted: (_) => _focusNode.unfocus(),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -584,24 +656,33 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          TextField(
-                            key: const ValueKey('todo-description-field'),
+                          RecognizedTextField(
                             controller: _descriptionController,
-                            minLines: 1,
-                            maxLines: 3,
-                            maxLength: 300,
-                            textInputAction: TextInputAction.done,
-                            textCapitalization: TextCapitalization.sentences,
-                            cursorWidth: 1.5,
-                            cursorRadius: const Radius.circular(1),
-                            style: context.appTypography.secondary,
-                            decoration: InputDecoration(
-                              hintText: context.strings.description,
-                              counterText: '',
-                              hintStyle: TextStyle(color: colors.secondary),
+                            ranges: _descriptionRecognitionRanges,
+                            textStyle: descriptionStyle,
+                            highlightColor: colors.recognitionHighlight,
+                            highlightKey: const ValueKey(
+                              'todo-description-recognition-highlight',
                             ),
-                            onSubmitted: (_) =>
-                                FocusManager.instance.primaryFocus?.unfocus(),
+                            child: TextField(
+                              key: const ValueKey('todo-description-field'),
+                              controller: _descriptionController,
+                              minLines: 1,
+                              maxLines: 3,
+                              maxLength: 300,
+                              textInputAction: TextInputAction.done,
+                              textCapitalization: TextCapitalization.sentences,
+                              cursorWidth: 1.5,
+                              cursorRadius: const Radius.circular(1),
+                              style: descriptionStyle,
+                              decoration: InputDecoration(
+                                hintText: context.strings.description,
+                                counterText: '',
+                                hintStyle: TextStyle(color: colors.secondary),
+                              ),
+                              onSubmitted: (_) =>
+                                  FocusManager.instance.primaryFocus?.unfocus(),
+                            ),
                           ),
                           const SizedBox(height: AppSpace.xl),
                           TodoGroupPicker(
@@ -609,8 +690,7 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                             onChanged: (value) =>
                                 setState(() => _group = value),
                           ),
-                          const SizedBox(height: AppSpace.md),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppSpace.xl),
                           TaskPlanningFields(
                             value: _details,
                             datePulse: _datePulse,

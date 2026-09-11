@@ -66,7 +66,7 @@ class _PressableState extends State<Pressable> {
 
   void _activateLongPress() {
     if (widget.onLongPress == null) return;
-    if (widget.hapticOnLongPress) AppHaptics.strong();
+    if (widget.hapticOnLongPress) AppHaptics.medium();
     widget.onLongPress!();
   }
 

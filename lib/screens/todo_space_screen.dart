@@ -12,6 +12,7 @@ import '../services/task_pin_coordinator.dart';
 import '../app/todo_date_formatter.dart';
 import '../models/todo.dart';
 import '../state/todo_controller.dart';
+import '../state/category_progress_controller.dart';
 
 import '../widgets/add_todo_sheet.dart';
 import '../widgets/completed_section.dart';
@@ -113,7 +114,9 @@ class TodoSpaceScreen extends StatefulWidget {
 }
 
 class TodoSpaceScreenState extends State<TodoSpaceScreen>
-    with AutomaticKeepAliveClientMixin<TodoSpaceScreen> {
+    with
+        TickerProviderStateMixin,
+        AutomaticKeepAliveClientMixin<TodoSpaceScreen> {
   bool _longPressArmed = false;
   bool _deleteHovered = false;
   bool _deleteMagnetEngaged = false;
@@ -149,18 +152,36 @@ class TodoSpaceScreenState extends State<TodoSpaceScreen>
   String? _insertedId;
   GlobalKey? _insertedKey;
   late Set<String> _knownTodoIds;
+  late Map<String, Todo> _knownTodos;
+  late int _knownDataVersion;
   late bool _hadActiveTodos;
+  late bool _hadUnfinishedTodos;
   bool _topResetScheduled = false;
+  final _categoryProgress = CategoryProgressController();
+  Timer? _progressVisibilityTimer;
+  TodoGroup? _visibleProgressGroup;
+  String? _pendingFinalTodoId;
+  bool _pendingFinalCompletionInvalidated = false;
+  late final AnimationController _finalCompletionAnimation;
+  int _finalCompletionSequence = 0;
 
   @override
   void initState() {
     super.initState();
+    _finalCompletionAnimation = AnimationController(
+      vsync: this,
+      duration: AppMotion.finalCompletionWave,
+    );
+    final initialTodos = widget.controller.spaceById(widget.spaceId).todos;
     _knownTodoIds = widget.controller
         .spaceById(widget.spaceId)
         .todos
         .map((todo) => todo.id)
         .toSet();
+    _knownTodos = {for (final todo in initialTodos) todo.id: todo};
+    _knownDataVersion = widget.controller.dataVersion;
     _hadActiveTodos = _spaceHasActiveTodos();
+    _hadUnfinishedTodos = _spaceHasUnfinishedTodos();
     if (widget.activePage && !_hadActiveTodos) _scheduleTopReset();
     final taskTutorialId = widget.taskTutorialId;
     if (taskTutorialId != null) {
@@ -173,6 +194,8 @@ class TodoSpaceScreenState extends State<TodoSpaceScreen>
   @override
   void dispose() {
     _completedLayoutTimer?.cancel();
+    _progressVisibilityTimer?.cancel();
+    _finalCompletionAnimation.dispose();
     _dissolveOverlay?.remove();
     _scrollController.dispose();
     _rowKeys.clear();
@@ -208,8 +231,9 @@ class TodoSpaceScreenState extends State<TodoSpaceScreen>
       });
     }
     final currentSpace = widget.controller.spaceByIdOrNull(widget.spaceId);
-    final ids =
-        currentSpace?.todos.map((todo) => todo.id).toSet() ?? <String>{};
+    final currentTodos = currentSpace?.todos ?? const <Todo>[];
+    final currentTodosById = {for (final todo in currentTodos) todo.id: todo};
+    final ids = currentTodosById.keys.toSet();
     if (_draggingTodoId != null && !ids.contains(_draggingTodoId)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _endDrag(cancel: true);
@@ -221,8 +245,43 @@ class TodoSpaceScreenState extends State<TodoSpaceScreen>
       _insertedKey = GlobalKey();
       _activeTodoId = null;
     }
-    _knownTodoIds = ids;
+    final dataReplaced = widget.controller.dataVersion != _knownDataVersion;
+    final resetGroups = _progressCompositionChanges(
+      currentTodosById,
+      dataReplaced: dataReplaced,
+    );
     final hasActiveTodos = _spaceHasActiveTodos();
+    final hasUnfinishedTodos = _spaceHasUnfinishedTodos();
+    _updatePendingFinalCompletion(currentTodosById, resetGroups, dataReplaced);
+    final committedCompletionId = _committedCompletionId(currentTodosById);
+    final isFinalCompletion =
+        committedCompletionId != null &&
+        !dataReplaced &&
+        resetGroups.isEmpty &&
+        !_pendingFinalCompletionInvalidated &&
+        _hadUnfinishedTodos &&
+        !hasUnfinishedTodos &&
+        _knownTodos.values
+                .where(_isUnfinishedTodo)
+                .map((todo) => todo.id)
+                .toSet()
+                .length ==
+            1;
+    _resetCategoryProgress(resetGroups, resetSpace: dataReplaced);
+    if (isFinalCompletion) _hideCategoryProgress();
+    _updateCategoryProgress(
+      currentTodosById,
+      resetGroups,
+      showFeedback: !isFinalCompletion,
+    );
+    _knownTodoIds = ids;
+    _knownTodos = currentTodosById;
+    _knownDataVersion = widget.controller.dataVersion;
+    if (_pendingFinalTodoId == committedCompletionId) {
+      _pendingFinalTodoId = null;
+      _pendingFinalCompletionInvalidated = false;
+    }
+    if (isFinalCompletion) _triggerFinalCompletion();
     if (widget.activePage &&
         ((!oldWidget.activePage && widget.activePage) ||
             (_hadActiveTodos && !hasActiveTodos)) &&
@@ -230,6 +289,7 @@ class TodoSpaceScreenState extends State<TodoSpaceScreen>
       _scheduleTopReset();
     }
     _hadActiveTodos = hasActiveTodos;
+    _hadUnfinishedTodos = hasUnfinishedTodos;
     if (oldWidget.activePage && !widget.activePage && !widget.keepDragAlive) {
       final hadTutorial = _visibleTaskTutorialId != null;
       _visibleTaskTutorialId = null;
@@ -264,6 +324,231 @@ class TodoSpaceScreenState extends State<TodoSpaceScreen>
     } else if (!widget.controller.saveFailed) {
       _saveErrorShown = false;
     }
+  }
+
+  Set<TodoGroup> _progressCompositionChanges(
+    Map<String, Todo> currentTodos, {
+    required bool dataReplaced,
+  }) {
+    if (dataReplaced) return TodoGroup.values.toSet();
+    final changed = <TodoGroup>{};
+    for (final entry in _knownTodos.entries) {
+      final current = currentTodos[entry.key];
+      if (current == null) {
+        changed.add(entry.value.group);
+        continue;
+      }
+      if (current.group != entry.value.group ||
+          current.availableFrom != entry.value.availableFrom) {
+        changed
+          ..add(entry.value.group)
+          ..add(current.group);
+      }
+    }
+    for (final entry in currentTodos.entries) {
+      if (!_knownTodos.containsKey(entry.key)) changed.add(entry.value.group);
+    }
+    return changed;
+  }
+
+  void _resetCategoryProgress(
+    Set<TodoGroup> groups, {
+    required bool resetSpace,
+  }) {
+    if (resetSpace) {
+      _categoryProgress.resetSpace(widget.spaceId);
+    } else {
+      for (final group in groups) {
+        _categoryProgress.reset(widget.spaceId, group);
+      }
+    }
+    if (_visibleProgressGroup != null &&
+        (resetSpace || groups.contains(_visibleProgressGroup))) {
+      _progressVisibilityTimer?.cancel();
+      _progressVisibilityTimer = null;
+      _visibleProgressGroup = null;
+    }
+  }
+
+  void _updateCategoryProgress(
+    Map<String, Todo> currentTodos,
+    Set<TodoGroup> resetGroups, {
+    required bool showFeedback,
+  }) {
+    for (final entry in currentTodos.entries) {
+      final previous = _knownTodos[entry.key];
+      if (previous == null || resetGroups.contains(entry.value.group)) {
+        continue;
+      }
+      final current = entry.value;
+      if (!previous.isComplete && current.isComplete) {
+        final baseline = {
+          for (final todo in _knownTodos.values)
+            if (todo.group == current.group &&
+                _isUnfinishedTodo(todo) &&
+                (todo.availableFrom == null ||
+                    !todo.availableFrom!.isAfter(widget.controller.clock())))
+              todo.id,
+          current.id,
+        };
+        _categoryProgress.recordCompletion(
+          spaceId: widget.spaceId,
+          category: current.group,
+          baselineTaskIds: baseline,
+          taskId: current.id,
+        );
+        if (showFeedback) _showCategoryProgress(current.group);
+      } else if (previous.isComplete && !current.isComplete) {
+        final session = _categoryProgress.recordUncompletion(
+          spaceId: widget.spaceId,
+          category: current.group,
+          taskId: current.id,
+        );
+        if (session != null && showFeedback) {
+          _showCategoryProgress(current.group);
+        }
+      }
+    }
+  }
+
+  void _updatePendingFinalCompletion(
+    Map<String, Todo> currentTodos,
+    Set<TodoGroup> resetGroups,
+    bool dataReplaced,
+  ) {
+    if (_pendingFinalTodoId != null &&
+        (dataReplaced || resetGroups.isNotEmpty)) {
+      _pendingFinalCompletionInvalidated = true;
+    }
+    for (final entry in currentTodos.entries) {
+      final previous = _knownTodos[entry.key];
+      if (previous == null) continue;
+      final current = entry.value;
+      if (!dataReplaced &&
+          resetGroups.isEmpty &&
+          !previous.isComplete &&
+          current.completedPending) {
+        final unfinished = _knownTodos.values.where(_isUnfinishedTodo);
+        if (unfinished.length == 1 && unfinished.single.id == current.id) {
+          _pendingFinalTodoId = current.id;
+          _pendingFinalCompletionInvalidated = false;
+        }
+      } else if (previous.isComplete && !current.isComplete) {
+        if (_pendingFinalTodoId == current.id) {
+          _pendingFinalTodoId = null;
+          _pendingFinalCompletionInvalidated = false;
+        }
+      }
+    }
+  }
+
+  bool _isUnfinishedTodo(Todo todo) =>
+      !todo.isComplete || todo.completedPending;
+
+  String? _committedCompletionId(Map<String, Todo> currentTodos) {
+    for (final entry in currentTodos.entries) {
+      final previous = _knownTodos[entry.key];
+      if (previous == null) continue;
+      if (!previous.isComplete &&
+          entry.value.isComplete &&
+          !entry.value.completedPending) {
+        return entry.key;
+      }
+      if (previous.completedPending &&
+          entry.value.isComplete &&
+          !entry.value.completedPending) {
+        return entry.key;
+      }
+    }
+    return null;
+  }
+
+  void _showCategoryProgress(TodoGroup group) {
+    _progressVisibilityTimer?.cancel();
+    _visibleProgressGroup = group;
+    _progressVisibilityTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted || _visibleProgressGroup != group) return;
+      setState(() => _visibleProgressGroup = null);
+    });
+  }
+
+  void _hideCategoryProgress() {
+    _progressVisibilityTimer?.cancel();
+    _progressVisibilityTimer = null;
+    _visibleProgressGroup = null;
+  }
+
+  String? _progressLabel(TodoGroup group) {
+    if (_visibleProgressGroup != group) return null;
+    final session = _categoryProgress.sessionFor(widget.spaceId, group);
+    if (session == null) return null;
+    return '${session.completedCount} / ${session.totalCount}';
+  }
+
+  void _triggerFinalCompletion() {
+    _finalCompletionSequence++;
+    AppHaptics.finalCompletion();
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? AppMotion.reducedFeedback
+        : AppMotion.finalCompletionWave;
+    _finalCompletionAnimation.duration = duration;
+    unawaited(_finalCompletionAnimation.forward(from: 0));
+  }
+
+  Widget _finalCompletionWave(BuildContext context) {
+    if (_finalCompletionSequence == 0) return const SizedBox.shrink();
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final colors = context.appColors;
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _finalCompletionAnimation,
+            builder: (context, _) => CustomPaint(
+              key: ValueKey('final-completion-wave-$_finalCompletionSequence'),
+              painter: FinalCompletionWavePainter(
+                progress: _finalCompletionAnimation.value,
+                color: colors.ink,
+                dark: Theme.of(context).brightness == Brightness.dark,
+                reduceMotion: reduceMotion,
+                curve: AppMotion.completionWaveCurve,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyStateMessage(BuildContext context) {
+    final message = Text(
+      context.strings.emptySpace,
+      key: const ValueKey('empty-space-message'),
+      style: Theme.of(context).textTheme.bodySmall
+          ?.copyWith(color: context.appColors.secondary),
+    );
+    if (_finalCompletionSequence == 0) return message;
+    return AnimatedBuilder(
+      animation: _finalCompletionAnimation,
+      child: message,
+      builder: (context, child) {
+        final value = _finalCompletionAnimation.value;
+        final start = MediaQuery.disableAnimationsOf(context) ? 0.0 : 0.34;
+        final opacity = Curves.easeOutCubic.transform(
+          ((value - start) / (1 - start)).clamp(0.0, 1.0).toDouble(),
+        );
+        if (MediaQuery.disableAnimationsOf(context)) {
+          return Opacity(opacity: opacity, child: child);
+        }
+        return Opacity(
+          opacity: opacity,
+          child: Transform.translate(
+            offset: Offset(0, 5 * (1 - opacity)),
+            child: child,
+          ),
+        );
+      },
+    );
   }
 
   void _prepareTaskTutorial(String taskId) {
@@ -719,6 +1004,9 @@ class TodoSpaceScreenState extends State<TodoSpaceScreen>
     (group) => widget.controller.activeTodos(widget.spaceId, group).isNotEmpty,
   );
 
+  bool _spaceHasUnfinishedTodos() =>
+      widget.controller.spaceById(widget.spaceId).todos.any(_isUnfinishedTodo);
+
   void _scheduleTopReset() {
     if (_topResetScheduled) return;
     _topResetScheduled = true;
@@ -747,7 +1035,9 @@ class TodoSpaceScreenState extends State<TodoSpaceScreen>
     final completed = widget.controller.completedTodos(widget.spaceId);
     final hasActiveTodos = _spaceHasActiveTodos();
     final showEmptyState = widget.showPermanentEmptyState && !hasActiveTodos;
-    if (showEmptyState) _scheduleEmptyStateMeasurement();
+    if (showEmptyState) {
+      _scheduleEmptyStateMeasurement();
+    }
     final date = widget.dateFormatter.format(
       widget.controller.currentLocalDate,
       Localizations.localeOf(context),
@@ -758,238 +1048,313 @@ class TodoSpaceScreenState extends State<TodoSpaceScreen>
                 32)
             .clamp(1.0, AppSpace.contentWidth - 32)
             .toDouble();
-    return Align(
-      key: _dropSurfaceKey,
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: AppSpace.contentWidth),
-        child: Stack(
-          clipBehavior: Clip.none,
-          fit: StackFit.expand,
-          children: [
-            GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _activeTodoId == null ? null : _clearActiveTodo,
-              child: Listener(
-                onPointerDown: (event) {
-                  _dismissTaskTutorial();
-                  if (_pointerId != null) return;
-                  _pointerId = event.pointer;
-                  _pointerDown = event.position;
-                  final completedBounds = _bounds(_completedKey);
-                  _pullFromActiveContent =
-                      _completedExpanded &&
-                      completedBounds != null &&
-                      event.position.dy < completedBounds.top;
-                  _collapseArmed = false;
-                },
-                onPointerMove: (event) {
-                  if (event.pointer != _pointerId) return;
-                  if (_longPressArmed &&
-                      _draggingTodoId == null &&
-                      _activeTodoId != null &&
-                      _pointerDown != null &&
-                      (event.position - _pointerDown!).distance > 6) {
-                    final todo = widget.controller
-                        .spaceById(widget.spaceId)
-                        .todos
-                        .where((todo) => todo.id == _activeTodoId)
-                        .firstOrNull;
-                    if (todo == null) return;
-                    _startDrag(todo);
-                  }
-                  _updateDrag(event.position);
-                },
-                onPointerUp: (event) {
-                  if (event.pointer != _pointerId) return;
-                  if (_collapseArmed && _draggingTodoId == null) {
-                    setState(() {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Align(
+          key: _dropSurfaceKey,
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: AppSpace.contentWidth),
+            child: Stack(
+              clipBehavior: Clip.none,
+              fit: StackFit.expand,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: _activeTodoId == null ? null : _clearActiveTodo,
+                  child: Listener(
+                    onPointerDown: (event) {
+                      _dismissTaskTutorial();
+                      if (_pointerId != null) return;
+                      _pointerId = event.pointer;
+                      _pointerDown = event.position;
+                      final completedBounds = _bounds(_completedKey);
+                      _pullFromActiveContent =
+                          _completedExpanded &&
+                          completedBounds != null &&
+                          event.position.dy < completedBounds.top;
                       _collapseArmed = false;
-                      _completedExpanded = false;
-                    });
-                    _scheduleCompletedLayoutTransition();
-                  }
-                  _pullFromActiveContent = false;
-                  _endDrag();
-                  _pointerId = null;
-                  _longPressArmed = false;
-                },
-                onPointerCancel: (event) {
-                  if (event.pointer != _pointerId) return;
-                  _endDrag(cancel: true);
-                  _pullFromActiveContent = false;
-                  if (_collapseArmed) setState(() => _collapseArmed = false);
-                  _pointerId = null;
-                  _longPressArmed = false;
-                },
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: _onScroll,
-                  child: CustomScrollView(
-                    key: PageStorageKey('todo-scroll-${widget.spaceId}'),
-                    controller: _scrollController,
-                    physics: _completedExpanded
-                        ? const _CompletedScrollPhysics(
-                            parent: AlwaysScrollableScrollPhysics(),
-                          )
-                        : const _TodoScrollPhysics(
-                            parent: AlwaysScrollableScrollPhysics(),
-                          ),
-                    slivers: [
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(
-                          16,
-                          _headerToFirstSectionGap,
-                          16,
-                          0,
-                        ),
-                        sliver: SliverToBoxAdapter(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              for (final group in TodoGroup.values) ...[
-                                TodoSection(
-                                  key: _sectionKeys[group],
-                                  group: group,
-                                  trailing: group == TodoGroup.today
-                                      ? date
-                                      : null,
-                                  todos: _visibleOrder(group),
-                                  activeTodoId: _activeTodoId,
-                                  draggingTodoId: _visibleDraggingTodoId,
-                                  isExiting:
-                                      widget.controller.isCompletionExiting,
-                                  onToggle: _handleTodoTap,
-                                  onActivate: _activateTodo,
-                                  onDeactivate: _clearActiveTodo,
-                                  onEdit: _openEditor,
-                                  onPin: (todo) async {
-                                    var succeeded = true;
-                                    if (!todo.isPinned) {
-                                      succeeded =
-                                          await NotificationService.current
-                                              ?.requestPermission() ??
-                                          false;
-                                    }
-                                    if (!mounted) return false;
-                                    widget.controller.setPinned(
-                                      widget.spaceId,
-                                      todo.id,
-                                      !todo.isPinned,
-                                    );
-                                    return succeeded;
-                                  },
-                                  onDragStarted: _startDrag,
-                                  onDragUpdate: _updateDrag,
-                                  onDragEnd: _endDrag,
-                                  rowKeys: _rowKeys,
-                                  insertedId: _insertedId,
-                                  insertedKey: _insertedKey,
-                                  onInsertEnd: _revealInsertedTodo,
-                                  tutorialTaskId: _visibleTaskTutorialId,
-                                  tutorialLink: _tutorialLink,
-                                ),
-                                if (group != TodoGroup.someday) ...[
-                                  const SizedBox(height: _sectionToDividerGap),
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: AppSpace.md,
+                    },
+                    onPointerMove: (event) {
+                      if (event.pointer != _pointerId) return;
+                      if (_longPressArmed &&
+                          _draggingTodoId == null &&
+                          _activeTodoId != null &&
+                          _pointerDown != null &&
+                          (event.position - _pointerDown!).distance > 6) {
+                        final todo = widget.controller
+                            .spaceById(widget.spaceId)
+                            .todos
+                            .where((todo) => todo.id == _activeTodoId)
+                            .firstOrNull;
+                        if (todo == null) return;
+                        _startDrag(todo);
+                      }
+                      _updateDrag(event.position);
+                    },
+                    onPointerUp: (event) {
+                      if (event.pointer != _pointerId) return;
+                      if (_collapseArmed && _draggingTodoId == null) {
+                        setState(() {
+                          _collapseArmed = false;
+                          _completedExpanded = false;
+                        });
+                        _scheduleCompletedLayoutTransition();
+                      }
+                      _pullFromActiveContent = false;
+                      _endDrag();
+                      _pointerId = null;
+                      _longPressArmed = false;
+                    },
+                    onPointerCancel: (event) {
+                      if (event.pointer != _pointerId) return;
+                      _endDrag(cancel: true);
+                      _pullFromActiveContent = false;
+                      if (_collapseArmed) {
+                        setState(() => _collapseArmed = false);
+                      }
+                      _pointerId = null;
+                      _longPressArmed = false;
+                    },
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: _onScroll,
+                      child: CustomScrollView(
+                        key: PageStorageKey('todo-scroll-${widget.spaceId}'),
+                        controller: _scrollController,
+                        physics: _completedExpanded
+                            ? const _CompletedScrollPhysics(
+                                parent: AlwaysScrollableScrollPhysics(),
+                              )
+                            : const _TodoScrollPhysics(
+                                parent: AlwaysScrollableScrollPhysics(),
+                              ),
+                        slivers: [
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(
+                              16,
+                              _headerToFirstSectionGap,
+                              16,
+                              0,
+                            ),
+                            sliver: SliverToBoxAdapter(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  for (final group in TodoGroup.values) ...[
+                                    TodoSection(
+                                      key: _sectionKeys[group],
+                                      group: group,
+                                      trailing: group == TodoGroup.today
+                                          ? date
+                                          : null,
+                                      progress: _progressLabel(group),
+                                      todos: _visibleOrder(group),
+                                      activeTodoId: _activeTodoId,
+                                      draggingTodoId: _visibleDraggingTodoId,
+                                      isExiting:
+                                          widget.controller.isCompletionExiting,
+                                      onToggle: _handleTodoTap,
+                                      onActivate: _activateTodo,
+                                      onDeactivate: _clearActiveTodo,
+                                      onEdit: _openEditor,
+                                      onPin: (todo) async {
+                                        var succeeded = true;
+                                        if (!todo.isPinned) {
+                                          succeeded =
+                                              await NotificationService.current
+                                                  ?.requestPermission() ??
+                                              false;
+                                        }
+                                        if (!mounted) return false;
+                                        widget.controller.setPinned(
+                                          widget.spaceId,
+                                          todo.id,
+                                          !todo.isPinned,
+                                        );
+                                        return succeeded;
+                                      },
+                                      onDragStarted: _startDrag,
+                                      onDragUpdate: _updateDrag,
+                                      onDragEnd: _endDrag,
+                                      rowKeys: _rowKeys,
+                                      insertedId: _insertedId,
+                                      insertedKey: _insertedKey,
+                                      onInsertEnd: _revealInsertedTodo,
+                                      tutorialTaskId: _visibleTaskTutorialId,
+                                      tutorialLink: _tutorialLink,
                                     ),
-                                    child: DashedDivider(),
-                                  ),
-                                  const SizedBox(height: _dividerToSectionGap),
+                                    if (group != TodoGroup.someday) ...[
+                                      const SizedBox(
+                                        height: _sectionToDividerGap,
+                                      ),
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: AppSpace.md,
+                                        ),
+                                        child: DashedDivider(),
+                                      ),
+                                      const SizedBox(
+                                        height: _dividerToSectionGap,
+                                      ),
+                                    ],
+                                  ],
                                 ],
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                      // Keep the measured empty area outside the pinned child.
-                      // Its first layout must not cause a scroll correction.
-                      if (showEmptyState)
-                        SliverToBoxAdapter(
-                          child: SizedBox(
-                            height: _emptyStateHeight,
-                            // The hint is decorative. Hide it before completed
-                            // rows expand into the measured empty area.
-                            child: _completedLayoutExpanded
-                                ? const SizedBox.shrink()
-                                : Center(
-                                    child: Text(
-                                      context.strings.emptySpace,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: context.appColors.secondary,
-                                          ),
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      if (completed.isNotEmpty)
-                        BottomPinnedSliver(
-                          bottomInset: AppSpace.xl,
-                          // Completed tasks can use the measured empty area.
-                          // The page stays at its top scroll position.
-                          overlapBefore:
-                              showEmptyState && _completedLayoutExpanded,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                            child: CompletedSection(
-                              key: _completedKey,
-                              collapseArmed: _collapseArmed,
-                              todos: completed,
-                              expanded: _completedExpanded,
-                              dragging: _visibleDraggingTodoId != null,
-                              noticeVisible: widget.controller.canUndoDeletion,
-                              onToggleExpanded: () {
-                                _clearActiveTodo();
-                                _setCompletedExpanded(!_completedExpanded);
-                              },
-                              onToggleTodo: _toggle,
+                              ),
                             ),
                           ),
-                        )
-                      else if (!showEmptyState)
-                        SliverToBoxAdapter(child: const SizedBox(height: 104)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            if (_visibleTaskTutorialId != null)
-              OverflowBox(
-                alignment: Alignment.topLeft,
-                minWidth: 0,
-                maxWidth: double.infinity,
-                minHeight: 0,
-                maxHeight: double.infinity,
-                child: CompositedTransformFollower(
-                  link: _tutorialLink,
-                  showWhenUnlinked: false,
-                  targetAnchor: Alignment.bottomLeft,
-                  followerAnchor: Alignment.topLeft,
-                  offset: const Offset(0, 12),
-                  child: SizedBox(
-                    width: tutorialWidth,
-                    child: FirstTaskEditTutorial(
-                      key: const ValueKey('first-task-edit-tutorial'),
-                      showPin:
-                          !kIsWeb &&
-                          defaultTargetPlatform == TargetPlatform.android,
-                      onDismiss: _dismissTaskTutorial,
+                          // Keep the measured empty area outside the pinned child.
+                          // Its first layout must not cause a scroll correction.
+                          if (showEmptyState)
+                            SliverToBoxAdapter(
+                              child: SizedBox(
+                                height: _emptyStateHeight,
+                                // The hint is decorative. Hide it before completed
+                                // rows expand into the measured empty area.
+                                child: _completedLayoutExpanded
+                                    ? const SizedBox.shrink()
+                                    : Center(
+                                        child: _emptyStateMessage(context),
+                                      ),
+                              ),
+                            ),
+                          if (completed.isNotEmpty)
+                            BottomPinnedSliver(
+                              bottomInset: AppSpace.xl,
+                              // Completed tasks can use the measured empty area.
+                              // The page stays at its top scroll position.
+                              overlapBefore:
+                                  showEmptyState && _completedLayoutExpanded,
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  24,
+                                  16,
+                                  0,
+                                ),
+                                child: CompletedSection(
+                                  key: _completedKey,
+                                  collapseArmed: _collapseArmed,
+                                  todos: completed,
+                                  expanded: _completedExpanded,
+                                  dragging: _visibleDraggingTodoId != null,
+                                  noticeVisible:
+                                      widget.controller.canUndoDeletion,
+                                  onToggleExpanded: () {
+                                    _clearActiveTodo();
+                                    _setCompletedExpanded(!_completedExpanded);
+                                  },
+                                  onToggleTodo: _toggle,
+                                ),
+                              ),
+                            )
+                          else if (!showEmptyState)
+                            SliverToBoxAdapter(
+                              child: const SizedBox(height: 104),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+                if (_visibleTaskTutorialId != null)
+                  OverflowBox(
+                    alignment: Alignment.topLeft,
+                    minWidth: 0,
+                    maxWidth: double.infinity,
+                    minHeight: 0,
+                    maxHeight: double.infinity,
+                    child: CompositedTransformFollower(
+                      link: _tutorialLink,
+                      showWhenUnlinked: false,
+                      targetAnchor: Alignment.bottomLeft,
+                      followerAnchor: Alignment.topLeft,
+                      offset: const Offset(0, 12),
+                      child: SizedBox(
+                        width: tutorialWidth,
+                        child: FirstTaskEditTutorial(
+                          key: const ValueKey('first-task-edit-tutorial'),
+                          showPin:
+                              !kIsWeb &&
+                              defaultTargetPlatform == TargetPlatform.android,
+                          onDismiss: _dismissTaskTutorial,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
-      ),
+        _finalCompletionWave(context),
+      ],
     );
   }
 
   @override
   bool get wantKeepAlive => true;
+}
+
+@visibleForTesting
+class FinalCompletionWavePainter extends CustomPainter {
+  const FinalCompletionWavePainter({
+    required this.progress,
+    required this.color,
+    required this.dark,
+    required this.reduceMotion,
+    required this.curve,
+  });
+
+  final double progress;
+  final Color color;
+  final bool dark;
+  final bool reduceMotion;
+  final Curve curve;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0 || size.isEmpty) return;
+    final wash = color.withValues(alpha: dark ? 0.065 : 0.04);
+    if (reduceMotion) {
+      final pulse = math.sin(math.pi * progress.clamp(0.0, 1.0));
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()..color = wash.withValues(alpha: wash.a * pulse),
+      );
+      return;
+    }
+    final value = curve.transform(progress.clamp(0.0, 1.0));
+    final bandHeight = math.max(96.0, size.height * 0.34);
+    final centerY = -bandHeight / 2 + (size.height + bandHeight) * value;
+    final band = Rect.fromLTWH(
+      0,
+      centerY - bandHeight / 2,
+      size.width,
+      bandHeight,
+    );
+    final paint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          wash.withValues(alpha: 0),
+          wash.withValues(alpha: wash.a * 0.55),
+          wash,
+          wash.withValues(alpha: wash.a * 0.42),
+          wash.withValues(alpha: 0),
+        ],
+        stops: const [0, 0.24, 0.48, 0.72, 1],
+      ).createShader(band);
+    canvas.drawRect(band, paint);
+  }
+
+  @override
+  bool shouldRepaint(FinalCompletionWavePainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.color != color ||
+      oldDelegate.dark != dark ||
+      oldDelegate.reduceMotion != reduceMotion ||
+      oldDelegate.curve != curve;
 }
 
 class _CompletedScrollPhysics extends BouncingScrollPhysics {

@@ -21,6 +21,7 @@ class TodoController extends ChangeNotifier {
   bool _loadFailed = false;
   bool _saveFailed = false;
   bool _disposed = false;
+  int _dataVersion = 0;
   int _nextId = 0;
   int _stateRevision = 0;
   int _persistedRevision = 0;
@@ -89,6 +90,7 @@ class TodoController extends ChangeNotifier {
   bool get isReady => _ready;
   bool get loadFailed => _loadFailed;
   bool get saveFailed => _saveFailed;
+  int get dataVersion => _dataVersion;
   List<TodoSpace> get spaces => List.unmodifiable(_spaces);
   List<ArchivedTodo> get archive => List.unmodifiable(_archive);
   DateTime get currentLocalDate => localCalendarDate(clock());
@@ -127,6 +129,7 @@ class TodoController extends ChangeNotifier {
       final saved = await storage.load();
       if (_disposed) return;
       final snapshot = saved ?? TodoSnapshot.seeded(now);
+      _dataVersion++;
       final repairedEmptySpaces = snapshot.spaces.isEmpty;
       _spaces = repairedEmptySpaces
           ? [TodoSpace.seeded(now)]

@@ -6,6 +6,7 @@ class SometimeIconBox extends StatelessWidget {
     required this.size,
     required this.color,
     this.dimension = 32,
+    this.opticalOffset = Offset.zero,
     super.key,
   });
 
@@ -13,6 +14,7 @@ class SometimeIconBox extends StatelessWidget {
   final double size;
   final Color color;
   final double dimension;
+  final Offset opticalOffset;
 
   @override
   Widget build(BuildContext context) => SizedBox.square(
@@ -20,7 +22,10 @@ class SometimeIconBox extends StatelessWidget {
     child: Center(
       child: SizedBox.square(
         dimension: size,
-        child: Icon(icon, size: size, color: color),
+        child: Transform.translate(
+          offset: opticalOffset,
+          child: Icon(icon, size: size, color: color),
+        ),
       ),
     ),
   );

@@ -5,10 +5,12 @@ import 'package:todo_app/app/app_config.dart';
 import 'package:todo_app/app/app_theme.dart';
 import 'package:todo_app/app/sometime_icons.dart';
 import 'package:todo_app/models/task_details.dart';
+import 'package:todo_app/models/theme_preference.dart';
 import 'package:todo_app/widgets/add_todo_button.dart';
 import 'package:todo_app/widgets/add_todo_sheet.dart';
 import 'package:todo_app/widgets/sometime_input.dart';
 import 'package:todo_app/widgets/sometime_action_icon.dart';
+import 'package:todo_app/widgets/sometime_icon_box.dart';
 import 'package:todo_app/widgets/sometime_segmented_control.dart';
 import 'package:todo_app/widgets/task_planning_fields.dart';
 import 'package:todo_app/models/todo.dart';
@@ -121,6 +123,112 @@ void main() {
     expect(find.byType(AddTodoSheet), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Appearance cards use equal light and dark previews', (
+    tester,
+  ) async {
+    await startApp(tester, MemoryTodoStorage(), locale: const Locale('en'));
+    await showSettings(tester);
+    await tester.tap(control('Experience'));
+    await tester.pumpAndSettle();
+
+    final previews = [
+      for (final style in AppearanceStyle.values)
+        find.byKey(ValueKey('style-preview-${style.name}')),
+    ];
+    final sizes = [for (final preview in previews) tester.getSize(preview)];
+    expect(sizes.toSet(), hasLength(1));
+    expect(sizes.first.height, 112);
+
+    for (final style in AppearanceStyle.values) {
+      final previewFinder = find.byKey(ValueKey('style-preview-${style.name}'));
+      final preview = tester.widget<AnimatedContainer>(previewFinder);
+      expect((preview.decoration! as BoxDecoration).gradient, isNull);
+      final light = find.byKey(ValueKey('style-preview-light-${style.name}'));
+      final dark = find.byKey(ValueKey('style-preview-dark-${style.name}'));
+      final lightRect = tester.getRect(light);
+      final darkRect = tester.getRect(dark);
+      expect(lightRect.width, closeTo(darkRect.width, 0.001));
+      expect(lightRect.right, closeTo(darkRect.left, 0.001));
+      expect(
+        lightRect.width + darkRect.width,
+        closeTo(tester.getSize(previewFinder).width, 0.001),
+      );
+      expect(
+        find.byKey(ValueKey('style-preview-control-${style.name}')),
+        findsOneWidget,
+      );
+      final controlLight = tester.getRect(
+        find.byKey(ValueKey('style-preview-control-light-${style.name}')),
+      );
+      final controlDark = tester.getRect(
+        find.byKey(ValueKey('style-preview-control-dark-${style.name}')),
+      );
+      expect(controlLight.width, closeTo(controlDark.width, 0.001));
+      expect(controlLight.right, closeTo(controlDark.left, 0.001));
+    }
+  });
+
+  testWidgets('The fallback profile icon uses the centered icon box', (
+    tester,
+  ) async {
+    await startApp(tester, MemoryTodoStorage());
+
+    final fallback = find.byKey(const ValueKey('profile-fallback-icon'));
+    expect(fallback, findsOneWidget);
+    final iconBox = tester.widget<SometimeIconBox>(fallback);
+    expect(iconBox.dimension, 20);
+    expect(iconBox.size, 20);
+    expect(iconBox.opticalOffset, const Offset(2, 0));
+    expect(
+      find.ancestor(of: fallback, matching: find.byType(Center)),
+      findsWidgets,
+    );
+  });
+
+  testWidgets('Core screens fit supported locales at 130 percent text', (
+    tester,
+  ) async {
+    for (final locale in const [
+      Locale('en'),
+      Locale('de'),
+      Locale('es'),
+      Locale('pt', 'BR'),
+      Locale('fr'),
+      Locale('ja'),
+    ]) {
+      await startApp(
+        tester,
+        MemoryTodoStorage(),
+        locale: locale,
+        size: const Size(320, 700),
+        scale: 1.3,
+      );
+      expect(tester.takeException(), isNull, reason: locale.toLanguageTag());
+
+      await tester.tap(find.byType(AddTodoButton));
+      await tester.pumpAndSettle();
+      expect(find.byType(AddTodoSheet), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: locale.toLanguageTag());
+
+      Navigator.of(tester.element(find.byType(AddTodoSheet))).pop();
+      await tester.pumpAndSettle();
+      await showSettings(tester);
+      expect(tester.takeException(), isNull, reason: locale.toLanguageTag());
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
+
+  test('Soft Light uses a neutral surface instead of pure white', () {
+    final theme = buildAppTheme(
+      brightness: Brightness.light,
+      background: AppBackgrounds.offWhite,
+    );
+    final colors = theme.extension<AppPalette>()!;
+    expect(colors.surface, AppBackgrounds.softLightSurface);
+    expect(colors.surface, isNot(AppBackgrounds.pureWhite));
+  });
+
   testWidgets('Delete expands and undo restores the task', (tester) async {
     final storage = MemoryTodoStorage();
     await startApp(tester, storage, locale: const Locale('en'));

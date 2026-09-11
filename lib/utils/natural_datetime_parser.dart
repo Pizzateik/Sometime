@@ -1,8 +1,42 @@
+import 'package:flutter/foundation.dart';
+
+enum NaturalDateTimeSource { title, description }
+
+@immutable
+class NaturalDateTimeSourceRange {
+  const NaturalDateTimeSourceRange({
+    required this.source,
+    required this.start,
+    required this.end,
+  });
+
+  final NaturalDateTimeSource source;
+  final int start;
+  final int end;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NaturalDateTimeSourceRange &&
+      other.source == source &&
+      other.start == start &&
+      other.end == end;
+
+  @override
+  int get hashCode => Object.hash(source, start, end);
+}
+
 class NaturalDateTimeSuggestion {
-  const NaturalDateTimeSuggestion({this.date, this.minutes});
+  const NaturalDateTimeSuggestion({
+    this.date,
+    this.minutes,
+    this.dateSourceRange,
+    this.timeSourceRange,
+  });
 
   final DateTime? date;
   final int? minutes;
+  final NaturalDateTimeSourceRange? dateSourceRange;
+  final NaturalDateTimeSourceRange? timeSourceRange;
 }
 
 class NaturalDateTimeParser {
@@ -147,13 +181,37 @@ class NaturalDateTimeParser {
   }) {
     try {
       final german = languageCode.toLowerCase().startsWith('de');
+      final titleDate = _firstDate(title, now, german);
+      final descriptionDate = titleDate == null
+          ? _firstDate(description, now, german)
+          : null;
+      final titleTime = _firstTime(title, german, morningReminderMinutes);
+      final descriptionTime = titleTime == null
+          ? _firstTime(description, german, morningReminderMinutes)
+          : null;
+      final dateMatch = titleDate ?? descriptionDate;
+      final timeMatch = titleTime ?? descriptionTime;
       return NaturalDateTimeSuggestion(
-        date:
-            _firstDate(title, now, german) ??
-            _firstDate(description, now, german),
-        minutes:
-            _firstTime(title, german, morningReminderMinutes) ??
-            _firstTime(description, german, morningReminderMinutes),
+        date: dateMatch?.value,
+        minutes: timeMatch?.value,
+        dateSourceRange: dateMatch == null
+            ? null
+            : NaturalDateTimeSourceRange(
+                source: titleDate != null
+                    ? NaturalDateTimeSource.title
+                    : NaturalDateTimeSource.description,
+                start: dateMatch.start,
+                end: dateMatch.end,
+              ),
+        timeSourceRange: timeMatch == null
+            ? null
+            : NaturalDateTimeSourceRange(
+                source: titleTime != null
+                    ? NaturalDateTimeSource.title
+                    : NaturalDateTimeSource.description,
+                start: timeMatch.start,
+                end: timeMatch.end,
+              ),
       );
     } catch (_) {
       return const NaturalDateTimeSuggestion();
@@ -166,7 +224,11 @@ class NaturalDateTimeParser {
     required String languageCode,
   }) {
     try {
-      return _firstDate(text, now, languageCode.toLowerCase().startsWith('de'));
+      return _firstDate(
+        text,
+        now,
+        languageCode.toLowerCase().startsWith('de'),
+      )?.value;
     } catch (_) {
       return null;
     }
@@ -182,13 +244,55 @@ class NaturalDateTimeParser {
         text,
         languageCode.toLowerCase().startsWith('de'),
         morningReminderMinutes,
-      );
+      )?.value;
     } catch (_) {
       return null;
     }
   }
 
-  static DateTime? _firstDate(String text, DateTime now, bool german) {
+  static List<NaturalDateTimeSourceRange> mergeSourceRanges({
+    required String text,
+    required Iterable<NaturalDateTimeSourceRange> ranges,
+  }) {
+    final sorted =
+        ranges
+            .where(
+              (range) =>
+                  range.start >= 0 &&
+                  range.end > range.start &&
+                  range.end <= text.length,
+            )
+            .toList()
+          ..sort((first, second) => first.start.compareTo(second.start));
+    if (sorted.length < 2) return sorted;
+    final merged = <NaturalDateTimeSourceRange>[sorted.first];
+    for (final range in sorted.skip(1)) {
+      final previous = merged.last;
+      final sameSource = previous.source == range.source;
+      final gap = sameSource && previous.end <= range.start
+          ? text.substring(previous.end, range.start)
+          : '';
+      final joinsExpression =
+          previous.end >= range.start ||
+          RegExp(r'^\s*(?:at|um)\s*$', caseSensitive: false).hasMatch(gap);
+      if (sameSource && joinsExpression) {
+        merged[merged.length - 1] = NaturalDateTimeSourceRange(
+          source: previous.source,
+          start: previous.start,
+          end: previous.end > range.end ? previous.end : range.end,
+        );
+      } else {
+        merged.add(range);
+      }
+    }
+    return merged;
+  }
+
+  static _IndexedValue<DateTime>? _firstDate(
+    String text,
+    DateTime now,
+    bool german,
+  ) {
     final candidates = <_IndexedValue<DateTime>>[];
     final relative = (german ? _germanRelative : _englishRelative).allMatches(
       text,
@@ -212,6 +316,7 @@ class NaturalDateTimeParser {
         candidates.add(
           _IndexedValue(
             match.start,
+            match.end,
             _calendarDate(now.year, now.month, now.day + offset),
           ),
         );
@@ -226,7 +331,9 @@ class NaturalDateTimeParser {
           ? _germanWeekdays
           : _englishWeekdays)[match.group(1)!.toLowerCase()];
       if (weekday == null) continue;
-      candidates.add(_IndexedValue(match.start, _nextWeekday(now, weekday)));
+      candidates.add(
+        _IndexedValue(match.start, match.end, _nextWeekday(now, weekday)),
+      );
     }
 
     final named = (german ? _germanNamedDate : _englishNamedDate).allMatches(
@@ -242,7 +349,9 @@ class NaturalDateTimeParser {
       final date = month == null || day == null
           ? null
           : _resolveDate(month, day, year, now);
-      if (date != null) candidates.add(_IndexedValue(match.start, date));
+      if (date != null) {
+        candidates.add(_IndexedValue(match.start, match.end, date));
+      }
     }
 
     if (german) {
@@ -254,15 +363,21 @@ class NaturalDateTimeParser {
         final date = day == null || month == null
             ? null
             : _resolveDate(month, day, year, now);
-        if (date != null) candidates.add(_IndexedValue(match.start, date));
+        if (date != null) {
+          candidates.add(_IndexedValue(match.start, match.end, date));
+        }
       }
     }
 
     candidates.sort((a, b) => a.index.compareTo(b.index));
-    return candidates.isEmpty ? null : candidates.first.value;
+    return candidates.isEmpty ? null : candidates.first;
   }
 
-  static int? _firstTime(String text, bool german, int morningReminderMinutes) {
+  static _IndexedValue<int>? _firstTime(
+    String text,
+    bool german,
+    int morningReminderMinutes,
+  ) {
     final candidates = <_IndexedValue<int>>[];
     for (final match in _clockTime.allMatches(text)) {
       if (_hasSuffix(text, match.end, german ? 'uhr' : 'am|pm')) continue;
@@ -271,7 +386,7 @@ class NaturalDateTimeParser {
       if (hour == null || minute == null || hour > 23 || minute > 59) {
         continue;
       }
-      candidates.add(_IndexedValue(match.start, hour * 60 + minute));
+      candidates.add(_IndexedValue(match.start, match.end, hour * 60 + minute));
     }
 
     if (german) {
@@ -281,7 +396,9 @@ class NaturalDateTimeParser {
         if (hour == null || minute == null || hour > 23 || minute > 59) {
           continue;
         }
-        candidates.add(_IndexedValue(match.start, hour * 60 + minute));
+        candidates.add(
+          _IndexedValue(match.start, match.end, hour * 60 + minute),
+        );
       }
     } else {
       for (final match in _englishAmPmTime.allMatches(text)) {
@@ -301,7 +418,7 @@ class NaturalDateTimeParser {
             ? hour
             : hour + 12;
         candidates.add(
-          _IndexedValue(match.start, normalizedHour * 60 + minute),
+          _IndexedValue(match.start, match.end, normalizedHour * 60 + minute),
         );
       }
     }
@@ -317,12 +434,12 @@ class NaturalDateTimeParser {
         _ => null,
       };
       if (minutes != null) {
-        candidates.add(_IndexedValue(match.start, minutes));
+        candidates.add(_IndexedValue(match.start, match.end, minutes));
       }
     }
 
     candidates.sort((a, b) => a.index.compareTo(b.index));
-    return candidates.isEmpty ? null : candidates.first.value;
+    return candidates.isEmpty ? null : candidates.first;
   }
 
   static bool _hasSuffix(String text, int end, String suffix) {
@@ -395,8 +512,10 @@ class NaturalDateTimeParser {
 }
 
 class _IndexedValue<T> {
-  const _IndexedValue(this.index, this.value);
+  const _IndexedValue(this.start, this.end, this.value);
 
-  final int index;
+  final int start;
+  final int end;
+  int get index => start;
   final T value;
 }

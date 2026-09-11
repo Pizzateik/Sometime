@@ -280,4 +280,108 @@ void main() {
     expect(dateOnly.date, DateTime(2026, 9, 8));
     expect(dateOnly.minutes, isNull);
   });
+
+  test('returns exact source ranges and merges a date-time connector', () {
+    const text = 'Dinner with Lea tomorrow at 7 PM';
+    final result = NaturalDateTimeParser.parse(
+      title: text,
+      description: '',
+      now: now,
+      languageCode: 'en',
+    );
+
+    expect(
+      text.substring(
+        result.dateSourceRange!.start,
+        result.dateSourceRange!.end,
+      ),
+      'tomorrow',
+    );
+    expect(
+      text.substring(
+        result.timeSourceRange!.start,
+        result.timeSourceRange!.end,
+      ),
+      '7 PM',
+    );
+    final merged = NaturalDateTimeParser.mergeSourceRanges(
+      text: text,
+      ranges: [result.dateSourceRange!, result.timeSourceRange!],
+    );
+    expect(merged, hasLength(1));
+    expect(
+      text.substring(merged.single.start, merged.single.end),
+      'tomorrow at 7 PM',
+    );
+  });
+
+  test('keeps separated date and time ranges separate', () {
+    const text = 'Call Max Sep 15 before the trip, then 18:00';
+    final result = NaturalDateTimeParser.parse(
+      title: text,
+      description: '',
+      now: now,
+      languageCode: 'en',
+    );
+    final ranges = NaturalDateTimeParser.mergeSourceRanges(
+      text: text,
+      ranges: [result.dateSourceRange!, result.timeSourceRange!],
+    );
+
+    expect(ranges, hasLength(2));
+    expect(ranges.map((range) => text.substring(range.start, range.end)), [
+      'Sep 15',
+      '18:00',
+    ]);
+  });
+
+  test('source ranges retain their input and UTF-16 offsets', () {
+    const title = '電話 tomorrow';
+    const description = 'Notizen um 10:30 Uhr';
+    final result = NaturalDateTimeParser.parse(
+      title: title,
+      description: description,
+      now: now,
+      languageCode: 'de',
+    );
+
+    expect(result.dateSourceRange, isNull);
+    expect(result.timeSourceRange!.source, NaturalDateTimeSource.description);
+    expect(
+      description.substring(
+        result.timeSourceRange!.start,
+        result.timeSourceRange!.end,
+      ),
+      '10:30 Uhr',
+    );
+
+    final english = NaturalDateTimeParser.parse(
+      title: title,
+      description: '',
+      now: now,
+      languageCode: 'en',
+    );
+    expect(english.dateSourceRange!.source, NaturalDateTimeSource.title);
+    expect(
+      title.substring(
+        english.dateSourceRange!.start,
+        english.dateSourceRange!.end,
+      ),
+      'tomorrow',
+    );
+  });
+
+  test('invalid input has no values or source ranges', () {
+    final result = NaturalDateTimeParser.parse(
+      title: 'Call sometime after lunch',
+      description: 'No fixed plan',
+      now: now,
+      languageCode: 'en',
+    );
+
+    expect(result.date, isNull);
+    expect(result.minutes, isNull);
+    expect(result.dateSourceRange, isNull);
+    expect(result.timeSourceRange, isNull);
+  });
 }

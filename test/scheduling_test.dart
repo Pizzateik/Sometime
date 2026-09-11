@@ -113,7 +113,7 @@ void main() {
     );
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
-  testWidgets('A task moves after a 1050ms Space dwell and drop', (
+  testWidgets('A task moves after a 1100ms Space dwell and drop', (
     tester,
   ) async {
     final storage = MemoryTodoStorage(
@@ -180,7 +180,7 @@ void main() {
     expect(storage.snapshot!.spaces.last.todos.single.title, 'Move me');
   });
 
-  testWidgets('Leaving a Space before 1050ms cancels its dwell', (
+  testWidgets('Leaving a Space before 1100ms cancels its dwell', (
     tester,
   ) async {
     final storage = MemoryTodoStorage(

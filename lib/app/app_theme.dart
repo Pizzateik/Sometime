@@ -6,6 +6,7 @@ import 'sometime_icons.dart';
 abstract final class AppBackgrounds {
   static const deleteAccent = Color(0xFFFF303B);
   static const offWhite = Color(0xFFFAFAF8);
+  static const softLightSurface = Color(0xFFF3F3EF);
   static const pureWhite = Color(0xFFFFFFFF);
   static const oledBlack = Color(0xFF000000);
   static const softDark = Color(0xFF121212);
@@ -28,7 +29,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   factory AppPalette.light(Color background) => AppPalette(
     background: background,
-    surface: const Color(0xFFFFFFFF),
+    surface: background == AppBackgrounds.offWhite
+        ? AppBackgrounds.softLightSurface
+        : AppBackgrounds.pureWhite,
     ink: const Color(0xFF000000),
     text: const Color(0xFF343834),
     secondary: const Color(0xFF696D66),
@@ -81,6 +84,14 @@ class AppPalette extends ThemeExtension<AppPalette> {
           ? const Color(0xFF555555)
           : Colors.transparent);
   Color get taskSurface => scheme?.surfaceContainerLow ?? background;
+  Color get recognitionHighlight {
+    if (scheme != null) {
+      return scheme!.surfaceContainerHighest.withValues(alpha: 0.72);
+    }
+    final dark = background.computeLuminance() < 0.18;
+    return dark ? const Color(0xFF292929) : track;
+  }
+
   Color get disabled => scheme?.onSurface.withValues(alpha: 0.38) ?? secondary;
   Color get strongSelection => scheme?.primary ?? ink;
   Color get onStrongSelection =>
@@ -271,7 +282,13 @@ abstract final class AppMotion {
   static const insert = Duration(milliseconds: 280);
   static const open = Duration(milliseconds: 300);
   static const close = Duration(milliseconds: 240);
+  static const recognitionWave = Duration(milliseconds: 460);
+  static const recognitionDismiss = Duration(milliseconds: 220);
+  static const finalCompletionWave = Duration(milliseconds: 650);
+  static const reducedFeedback = Duration(milliseconds: 160);
   static const curve = Curves.easeOutCubic;
+  static const recognitionRevealCurve = Curves.easeOutCubic;
+  static const completionWaveCurve = Curves.easeInOutCubic;
 
   static Duration duration(BuildContext context, Duration duration) =>
       MediaQuery.disableAnimationsOf(context) ? Duration.zero : duration;

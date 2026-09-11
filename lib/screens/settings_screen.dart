@@ -1096,17 +1096,8 @@ class _StyleButton extends StatelessWidget {
       AppearanceStyle.soft => context.strings.soft,
       AppearanceStyle.materialYou => context.strings.color,
     };
-    final brightness = Theme.of(context).brightness;
-    final selectedColors = _selectedStyleColors(
-      controller: controller,
-      brightness: brightness,
-      style: style,
-    );
+    final preview = _stylePreviewColors(controller, style);
     final colors = context.appColors;
-    final background = selected
-        ? selectedColors.$1
-        : Color.alphaBlend(colors.hover, colors.surface);
-    final foreground = selected ? selectedColors.$2 : colors.text;
     return Pressable(
       label: label,
       selected: selected,
@@ -1115,56 +1106,197 @@ class _StyleButton extends StatelessWidget {
       scale: 0.97,
       radius: AppSpace.controlRadius,
       builder: (context, state) => AnimatedContainer(
+        key: ValueKey('style-preview-${style.name}'),
         duration: AppMotion.duration(context, AppMotion.color),
         curve: AppMotion.curve,
-        height: 48,
+        height: 112,
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: state.pressed
-              ? Color.alphaBlend(colors.hover, background)
-              : background,
           borderRadius: BorderRadius.circular(AppSpace.controlRadius),
-          border: Border.all(
-            color: selected ? foreground : colors.track,
-            width: selected ? 1.2 : 1,
-          ),
         ),
-        alignment: Alignment.center,
-        child: AnimatedDefaultTextStyle(
-          duration: AppMotion.duration(context, AppMotion.color),
-          curve: AppMotion.curve,
-          style:
-              (selected
-                      ? context.appTypography.segmentedSelected
-                      : context.appTypography.segmentedUnselected)
-                  .copyWith(color: foreground),
-          child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned.fill(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: ColoredBox(
+                      key: ValueKey('style-preview-light-${style.name}'),
+                      color: preview.lightBackground,
+                    ),
+                  ),
+                  Expanded(
+                    child: ColoredBox(
+                      key: ValueKey('style-preview-dark-${style.name}'),
+                      color: preview.darkBackground,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (state.pressed || state.hovered)
+              Positioned.fill(child: ColoredBox(color: colors.hover)),
+            ClipRRect(
+              key: ValueKey('style-preview-control-${style.name}'),
+              borderRadius: BorderRadius.circular(9),
+              child: SizedBox(
+                width: 76,
+                height: 32,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Positioned.fill(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: ColoredBox(
+                              key: ValueKey(
+                                'style-preview-control-light-${style.name}',
+                              ),
+                              color: preview.lightControl,
+                            ),
+                          ),
+                          Expanded(
+                            child: ColoredBox(
+                              key: ValueKey(
+                                'style-preview-control-dark-${style.name}',
+                              ),
+                              color: preview.darkControl,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: ClipRect(
+                        clipper: const _PreviewHalfClipper(left: true),
+                        child: Center(
+                          child: _PreviewLabel(
+                            label: label,
+                            color: preview.lightOnControl,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: ClipRect(
+                        clipper: const _PreviewHalfClipper(left: false),
+                        child: Center(
+                          child: _PreviewLabel(
+                            label: label,
+                            color: preview.darkOnControl,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedContainer(
+                  key: ValueKey('style-preview-border-${style.name}'),
+                  duration: AppMotion.duration(context, AppMotion.color),
+                  curve: AppMotion.curve,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppSpace.controlRadius),
+                    border: Border.all(
+                      color: selected ? colors.focus : colors.track,
+                      width: selected ? 2 : 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-(Color, Color) _selectedStyleColors({
-  required ThemeController controller,
-  required Brightness brightness,
-  required AppearanceStyle style,
-}) {
+class _PreviewLabel extends StatelessWidget {
+  const _PreviewLabel({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
+    child: Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: context.appTypography.controlLabel.copyWith(
+        color: color,
+        fontSize: 12,
+      ),
+    ),
+  );
+}
+
+class _PreviewHalfClipper extends CustomClipper<Rect> {
+  const _PreviewHalfClipper({required this.left});
+
+  final bool left;
+
+  @override
+  Rect getClip(Size size) => left
+      ? Rect.fromLTWH(0, 0, size.width / 2, size.height)
+      : Rect.fromLTWH(size.width / 2, 0, size.width / 2, size.height);
+
+  @override
+  bool shouldReclip(_PreviewHalfClipper oldClipper) => oldClipper.left != left;
+}
+
+({
+  Color lightBackground,
+  Color darkBackground,
+  Color lightControl,
+  Color darkControl,
+  Color lightOnControl,
+  Color darkOnControl,
+})
+_stylePreviewColors(ThemeController controller, AppearanceStyle style) {
   if (style == AppearanceStyle.normal) {
-    return brightness == Brightness.dark
-        ? (Colors.white, Colors.black)
-        : (Colors.black, Colors.white);
+    return (
+      lightBackground: AppBackgrounds.pureWhite,
+      darkBackground: AppBackgrounds.oledBlack,
+      lightControl: Colors.black,
+      darkControl: Colors.white,
+      lightOnControl: Colors.white,
+      darkOnControl: Colors.black,
+    );
   }
   if (style == AppearanceStyle.soft) {
-    return brightness == Brightness.dark
-        ? (AppBackgrounds.offWhite, Colors.black)
-        : (AppBackgrounds.softDark, Colors.white);
+    return (
+      lightBackground: AppBackgrounds.offWhite,
+      darkBackground: AppBackgrounds.softDark,
+      lightControl: Colors.black,
+      darkControl: AppBackgrounds.offWhite,
+      lightOnControl: Colors.white,
+      darkOnControl: Colors.black,
+    );
   }
-  final scheme = controller.useSystemColors
-      ? (brightness == Brightness.dark
-            ? controller.dynamicDark!
-            : controller.dynamicLight!)
-      : sometimeColorScheme(brightness, seed: controller.seedColor);
-  return (scheme.primary, scheme.onPrimary);
+  final light = controller.useSystemColors
+      ? controller.dynamicLight!
+      : sometimeColorScheme(Brightness.light, seed: controller.seedColor);
+  final dark = controller.useSystemColors
+      ? controller.dynamicDark!
+      : sometimeColorScheme(Brightness.dark, seed: controller.seedColor);
+  return (
+    lightBackground: light.surface,
+    darkBackground: dark.surface,
+    lightControl: light.primary,
+    darkControl: dark.primary,
+    lightOnControl: light.onPrimary,
+    darkOnControl: dark.onPrimary,
+  );
 }
 
 Future<void> showDisplayNameDialog(

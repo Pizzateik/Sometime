@@ -19,7 +19,15 @@ abstract final class AppHaptics {
     if (enabled && _supported) unawaited(HapticFeedback.mediumImpact());
   }
 
+  static void completion() {
+    if (enabled && _supported) unawaited(HapticFeedback.mediumImpact());
+  }
+
   static void strong() {
+    if (enabled && _supported) unawaited(HapticFeedback.heavyImpact());
+  }
+
+  static void finalCompletion() {
     if (enabled && _supported) unawaited(HapticFeedback.heavyImpact());
   }
 }

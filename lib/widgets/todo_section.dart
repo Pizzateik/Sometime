@@ -27,6 +27,7 @@ class TodoSection extends StatelessWidget {
     this.insertedId,
     this.insertedKey,
     this.onInsertEnd,
+    this.progress,
     super.key,
   });
 
@@ -50,6 +51,7 @@ class TodoSection extends StatelessWidget {
   final String? insertedId;
   final GlobalKey? insertedKey;
   final VoidCallback? onInsertEnd;
+  final String? progress;
 
   @override
   Widget build(BuildContext context) {
@@ -61,14 +63,41 @@ class TodoSection extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Semantics(
-                  header: true,
-                  child: Text(
-                    context.strings.groupName(group.index),
-                    style: context.appTypography.sectionTitle.copyWith(
-                      fontSize: 18,
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Semantics(
+                        header: true,
+                        child: Text(
+                          context.strings.groupName(group.index),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.appTypography.sectionTitle.copyWith(
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: AnimatedSwitcher(
+                        duration: AppMotion.duration(context, AppMotion.color),
+                        transitionBuilder: (child, animation) =>
+                            FadeTransition(opacity: animation, child: child),
+                        child: progress == null
+                            ? const SizedBox(
+                                key: ValueKey('category-progress-hidden'),
+                              )
+                            : Text(
+                                progress!,
+                                key: ValueKey(progress),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.appTypography.metadata,
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               if (trailing != null)

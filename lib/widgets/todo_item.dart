@@ -70,7 +70,7 @@ class _TodoItemState extends State<TodoItem> with TickerProviderStateMixin {
   void didUpdateWidget(TodoItem oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!oldWidget.todo.isComplete && widget.todo.isComplete) {
-      AppHaptics.medium();
+      AppHaptics.completion();
       if (!MediaQuery.disableAnimationsOf(context)) {
         _celebration.forward(from: 0);
       }
@@ -426,8 +426,8 @@ class _TodoItemState extends State<TodoItem> with TickerProviderStateMixin {
                                 key: ValueKey('space-switch-border-${todo.id}'),
                                 painter: _SpaceSwitchBorderPainter(
                                   progress: switchProgress,
-                                  stripe: colors.destructive,
-                                  contrast: colors.ink,
+                                  stripe: colors.focus,
+                                  contrast: colors.outline,
                                 ),
                               ),
                             ),
@@ -479,13 +479,13 @@ class _SpaceSwitchBorderPainter extends CustomPainter {
     canvas.clipPath(border);
     canvas.drawRRect(
       outer,
-      Paint()..color = contrast.withValues(alpha: 0.34 * visibility),
+      Paint()..color = contrast.withValues(alpha: 0.3 * visibility),
     );
     const spacing = 11.0;
     final phase = (progress * spacing * 2) % spacing;
     final paint = Paint()
-      ..color = stripe.withValues(alpha: 0.72 * visibility)
-      ..strokeWidth = 5
+      ..color = stripe.withValues(alpha: 0.58 * visibility)
+      ..strokeWidth = 4
       ..strokeCap = StrokeCap.square;
     for (
       var x = -size.height - spacing + phase;
