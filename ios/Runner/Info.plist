@@ -18,6 +18,10 @@
 	<array>
 		<string>de</string>
 		<string>en</string>
+		<string>es</string>
+		<string>pt-BR</string>
+		<string>fr</string>
+		<string>ja</string>
 	</array>
 	<key>CFBundleName</key>
 	<string>Sometime</string>

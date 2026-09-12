@@ -1,0 +1,8 @@
+# These files support builds, asset generation, and release checks.
+/tool/** linguist-detectable=false
+
+# Flutter web shell files contain no application logic.
+/web/index.html linguist-detectable=false
+/web/manifest.json linguist-detectable=false
+/web/icons/** linguist-generated=true
+/web/favicon.png linguist-generated=true

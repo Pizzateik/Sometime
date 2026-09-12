@@ -5,6 +5,14 @@
 <h1 align="center">Sometime</h1>
 
 <p align="center">
+  <a href="https://github.com/Pizzateik/Sometime/releases"><img src="https://img.shields.io/github/v/release/Pizzateik/Sometime?include_prereleases=true&amp;sort=semver&amp;display_name=tag&amp;style=flat-square&amp;label=Latest%20release" alt="Latest release"></a>
+  <a href="https://github.com/Pizzateik/Sometime/releases"><img src="https://img.shields.io/github/downloads/Pizzateik/Sometime/total?style=flat-square&amp;label=GitHub%20downloads" alt="GitHub downloads"></a>
+  <img src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square&amp;logo=android&amp;logoColor=white" alt="Android 7.0 or later">
+  <img src="https://img.shields.io/badge/Flutter-3.47.2-02569B?style=flat-square&amp;logo=flutter&amp;logoColor=white" alt="Flutter 3.47.2">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Pizzateik/Sometime?style=flat-square&amp;label=Apache-2.0" alt="Apache-2.0 license"></a>
+</p>
+
+<p align="center">
   <br>
   <img src="assets/screenshots/Frame%201.png" alt="Sometime screen 1" width="140">
   <img src="assets/screenshots/Frame%202.png" alt="Sometime screen 2" width="140">
@@ -63,10 +71,10 @@ Use Spaces for separate parts of life or work. Choose light, dark, or soft appea
 ## Download
 
 <p align="center">
-  <a href="https://github.com/Pizzateik/Sometime/releases"><strong>View Android beta releases</strong></a>
+  <a href="https://github.com/Pizzateik/Sometime/releases"><strong>View Android release candidates</strong></a>
 </p>
 
-The APK is distributed through [GitHub Releases](https://github.com/Pizzateik/Sometime/releases). GitHub marks beta builds as prereleases.
+The APK is distributed through [GitHub Releases](https://github.com/Pizzateik/Sometime/releases). GitHub marks release candidates as prereleases.
 
 ## Requirements
 
@@ -99,11 +107,19 @@ flutter analyze
 flutter test
 ```
 
+Build the F-Droid APK without Play Billing or production signing credentials.
+
+```bash
+flutter build apk --release --flavor fdroid
+```
+
+This flavor keeps the app offline and excludes Play Billing from the APK.
+
 Production signing credentials are not included. Debug builds do not need them.
 
 ## Status
 
-Sometime is in beta for Android. No store listing is available yet.
+Sometime is preparing its first 1.0 release candidate for Android. No store listing is available yet.
 
 ## Contributing
 

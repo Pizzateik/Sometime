@@ -1,16 +1,16 @@
 ﻿# PLAY STORE READINESS
 
-Audit date: September 9, 2026.
+Audit date: September 12, 2026.
 The code checks pass. The current artifacts are local test builds, not signed Play Store uploads.
 
 ## READY
 
 - `flutter analyze`: no issues.
-- `flutter test`: 119 tests passed (including release regression suite).
-- `flutter build apk --release`: passed, 21.5 MB (arm64-v8a).
-- `flutter build appbundle --release`: passed, 55.4 MB (Play Store App Bundle).
+- `flutter test`: 161 tests passed (including release regression suite).
+- `flutter build apk --release --split-per-abi`: passed, 18.3 to 22.0 MB.
+- `flutter build appbundle --release`: passed, 55.7 MB (Play Store App Bundle).
 - The installed release APK passed an emulator cold start after force-stop. Saved tasks remained visible. The crash buffer was empty.
-- Android configuration: `eu.eikrose.sometime`, version 1.0.0 (1), minimum SDK 24, target SDK 35, compile SDK 35.
+- Android configuration: `eu.eikrose.sometime`, version 1.0.0-rc.1 (4), minimum SDK 24, target SDK 36, compile SDK 36.
 - The adaptive launcher icon includes foreground and monochrome layers. Its background is `#FF5C5C`.
 - The bundle uses membership WebP gradients. It contains no old gradient PNG files.
 - App text uses Geist. The membership display name uses Parisienne. App icon mappings use Phosphor.
@@ -32,6 +32,7 @@ The code checks pass. The current artifacts are local test builds, not signed Pl
 - New debug entitlement overrides carry a debug-only flag. Release code ignores that flag as an entitlement source.
 - Purchase setup follows settings load. Canceled purchases can retry, and purchase callbacks handle errors.
 - Android accepts an external release signing configuration from `~/.sometime-signing/key.properties` or `SOMETIME_SIGNING_PROPERTIES`.
+- The F-Droid flavor builds without Play Billing and uses debug signing for local builds.
 - README architecture and notification notes now match the app.
 - Eliminated 17.7 MB uncompressed font bloat by removing redundant CJK fonts. App uses Geist for text and Parisienne for membership display names.
 - Protected state lookups, drag-drop handling, recurrence rules, and DateTime parser against null/bounds crashes.
@@ -64,9 +65,8 @@ Store submission is not approved by this report. The manual release checks above
 The audit used Flutter 3.47.2 and Dart 3.13.2 from the project SDK.
 Run each command from the project root. Use `.tools/flutter/bin/flutter.bat` if Flutter is not on PATH.
 
-The Kotlin migration warning for the application was resolved by removing the redundant Kotlin plugin declaration.
-The remaining notice originates from `dynamic_color` 1.8.1.
-Follow the [Flutter migration guide](https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-app-developers) when compatible dependencies are available.
+The remaining Kotlin migration warning originates from `dynamic_color` 1.8.1.
+Follow the [Flutter migration guide](https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-app-developers) when a compatible dependency is available.
 
 `objective_c` 9.5.0 comes through `share_plus`, its platform interface, and `path_provider_foundation`.
 Both release builds now pass from the normal `Sometime` project path with native hooks enabled.

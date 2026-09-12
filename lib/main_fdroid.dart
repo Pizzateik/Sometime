@@ -1,9 +1,8 @@
 import 'package:flutter/widgets.dart';
 
-import 'app/app_config.dart';
 import 'app/todo_app.dart';
 import 'models/todo_storage.dart';
-import 'services/play_support_purchase_service.dart';
+import 'services/support_purchase_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,9 +12,7 @@ void main() {
       storage: storage,
       themeStorage: storage,
       enableNotifications: true,
-      purchaseService: PlaySupportPurchaseService(
-        enabled: AppConfig.enableSupporterPurchases,
-      ),
+      purchaseService: SupportPurchaseService(),
     ),
   );
 }

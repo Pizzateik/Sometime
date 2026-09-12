@@ -1,5 +1,6 @@
 import java.util.Properties
 import java.io.File
+import org.gradle.api.tasks.compile.JavaCompile
 
 plugins {
     id("com.android.application")
@@ -24,8 +25,11 @@ if (releasePropertiesFile.isFile) {
 val hasReleaseProperties = releasePropertiesFile.isFile &&
     requiredReleaseProperties.all { !releaseProperties.getProperty(it).isNullOrBlank() }
 val releaseStoreFile = releaseProperties.getProperty("storeFile")?.let(::File)
+val fdroidBuild = providers.gradleProperty("sometimeFlavor").orNull == "fdroid" ||
+    gradle.startParameter.taskNames.any { it.contains("fdroid", ignoreCase = true) }
 
 gradle.taskGraph.whenReady {
+    if (fdroidBuild) return@whenReady
     val releaseRequested = allTasks.any {
         it.project == project && it.name.contains("release", ignoreCase = true)
     }
@@ -68,6 +72,17 @@ android {
         versionName = flutter.versionName
     }
 
+    flavorDimensions += "distribution"
+
+    productFlavors {
+        create("play") {
+            dimension = "distribution"
+        }
+        create("fdroid") {
+            dimension = "distribution"
+        }
+    }
+
     signingConfigs {
         if (hasReleaseProperties) {
             create("release") {
@@ -81,8 +96,19 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.findByName("release")
+            signingConfig = if (fdroidBuild) {
+                signingConfigs.getByName("debug")
+            } else {
+                signingConfigs.findByName("release")
+            }
         }
+    }
+
+}
+
+if (fdroidBuild) {
+    tasks.withType<JavaCompile>().configureEach {
+        exclude("io/flutter/plugins/GeneratedPluginRegistrant.java")
     }
 }
 
@@ -94,4 +120,7 @@ kotlin {
 
 flutter {
     source = "../.."
+    if (fdroidBuild) {
+        target = "lib/main_fdroid.dart"
+    }
 }

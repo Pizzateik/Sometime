@@ -2,6 +2,7 @@
 /captures/
 /local.properties
 GeneratedPluginRegistrant.java
+!app/src/fdroid/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 .cxx/
 
 # Remember to never publicly share your keystore.

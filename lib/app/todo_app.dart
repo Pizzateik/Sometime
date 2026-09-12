@@ -32,6 +32,7 @@ class TodoApp extends StatefulWidget {
     this.clock = systemClock,
     this.enableNotifications = false,
     this.enableSupporterPurchases = AppConfig.enableSupporterPurchases,
+    this.purchaseService,
     super.key,
   });
 
@@ -40,6 +41,7 @@ class TodoApp extends StatefulWidget {
   final AppClock clock;
   final bool enableNotifications;
   final bool enableSupporterPurchases;
+  final SupportPurchaseService? purchaseService;
 
   @override
   State<TodoApp> createState() => _TodoAppState();
@@ -79,9 +81,9 @@ class _TodoAppState extends State<TodoApp> with WidgetsBindingObserver {
           : MemoryAppSettingsStorage(),
       promptForDisplayName: localSettings,
     );
-    _purchases = SupportPurchaseService(
-      enabled: widget.enableSupporterPurchases,
-    );
+    _purchases =
+        widget.purchaseService ??
+        SupportPurchaseService(enabled: widget.enableSupporterPurchases);
     _purchases.onEntitlementConfirmed = () {
       AppHaptics.medium();
       unawaited(

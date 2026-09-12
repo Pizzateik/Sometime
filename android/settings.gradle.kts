@@ -1,4 +1,28 @@
 pluginManagement {
+    val fdroidBuild = providers.gradleProperty("sometimeFlavor").orNull == "fdroid" ||
+        gradle.startParameter.taskNames.any { it.contains("fdroid", ignoreCase = true) }
+
+    if (fdroidBuild) {
+        val metadataFile = rootDir.parentFile.resolve(".flutter-plugins-dependencies")
+        check(metadataFile.isFile) {
+            "Flutter plugin metadata is missing. Run flutter pub get before the F-Droid build."
+        }
+        val originalMetadata = metadataFile.readText()
+        @Suppress("UNCHECKED_CAST")
+        val metadata = groovy.json.JsonSlurper().parseText(originalMetadata) as MutableMap<String, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val plugins = metadata["plugins"] as MutableMap<String, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val androidPlugins = plugins["android"] as MutableList<MutableMap<String, Any?>>
+        check(androidPlugins.removeAll { it["name"] == "in_app_purchase_android" }) {
+            "The F-Droid build expected the in_app_purchase_android plugin metadata."
+        }
+        metadataFile.writeText(groovy.json.JsonOutput.toJson(metadata))
+        gradle.buildFinished {
+            metadataFile.writeText(originalMetadata)
+        }
+    }
+
     val flutterSdkPath =
         run {
             val properties = java.util.Properties()
