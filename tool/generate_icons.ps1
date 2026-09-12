@@ -1,73 +1,56 @@
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
-$projectRoot = Split-Path -Parent $PSScriptRoot
-$assetRoot = Join-Path $projectRoot 'assets/icon'
-$foreground = [Drawing.Bitmap]::FromFile((Join-Path $assetRoot 'sometime_foreground.png'))
-$background = [Drawing.Bitmap]::FromFile((Join-Path $assetRoot 'sometime_background.png'))
-$monochrome = [Drawing.Bitmap]::FromFile((Join-Path $assetRoot 'sometime_monotone_foreground.png'))
 
-function New-Canvas([int]$Size, [bool]$Opaque) {
-    $format = if ($Opaque) { [Drawing.Imaging.PixelFormat]::Format24bppRgb } else { [Drawing.Imaging.PixelFormat]::Format32bppArgb }
-    return [Drawing.Bitmap]::new($Size, $Size, $format)
-}
-function Draw-Layer($Canvas, $Layer, [double]$Fraction) {
-    $graphics = [Drawing.Graphics]::FromImage($Canvas)
-    $graphics.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-    $graphics.PixelOffsetMode = [Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-    $side = [single]($Canvas.Width * $Fraction)
-    $offset = [single](($Canvas.Width - $side) / 2)
-    $graphics.DrawImage($Layer, $offset, $offset, $side, $side)
-    $graphics.Dispose()
-}
-function Save-Icon($Bitmap, [string]$Path) {
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$assetRoot = Join-Path $projectRoot 'assets\icon'
+$appleMaster = [Drawing.Bitmap]::FromFile((Join-Path $assetRoot 'Apple_Full_Icon.png'))
+$androidMaster = [Drawing.Bitmap]::FromFile((Join-Path $assetRoot 'Android_Full_Icon.png'))
+
+function Save-Icon {
+    param(
+        [Parameter(Mandatory = $true)][Drawing.Bitmap]$Source,
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][int]$Size
+    )
+
     $target = Join-Path $projectRoot $Path
     [IO.Directory]::CreateDirectory((Split-Path -Parent $target)) | Out-Null
-    $Bitmap.Save($target, [Drawing.Imaging.ImageFormat]::Png)
-}
-
-$source = New-Canvas 1024 $true
-Draw-Layer $source $background 1
-Draw-Layer $source $foreground 0.86
-Save-Icon $source 'assets/icon/sometime_full.png'
-function Write-AppIcon([string]$Path, [int]$Size) {
-    $bitmap = New-Canvas $Size $true
-    Draw-Layer $bitmap $source 1
-    Save-Icon $bitmap $Path
+    $bitmap = [Drawing.Bitmap]::new($Size, $Size, [Drawing.Imaging.PixelFormat]::Format24bppRgb)
+    $graphics = [Drawing.Graphics]::FromImage($bitmap)
+    $graphics.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $graphics.PixelOffsetMode = [Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+    $graphics.DrawImage($Source, 0, 0, $Size, $Size)
+    $graphics.Dispose()
+    $bitmap.Save($target, [Drawing.Imaging.ImageFormat]::Png)
     $bitmap.Dispose()
 }
 
-$iconSet = 'ios/Runner/Assets.xcassets/AppIcon.appiconset'
-$contents = Get-Content -LiteralPath (Join-Path $projectRoot "$iconSet/Contents.json") -Raw | ConvertFrom-Json
+$iconSet = 'ios\Runner\Assets.xcassets\AppIcon.appiconset'
+$contentsPath = Join-Path $projectRoot "$iconSet\Contents.json"
+$contents = Get-Content -LiteralPath $contentsPath -Raw | ConvertFrom-Json
 foreach ($entry in $contents.images) {
     if ($entry.filename) {
-        $points = [double]::Parse($entry.size.Split('x')[0], [Globalization.CultureInfo]::InvariantCulture)
-        Write-AppIcon "$iconSet/$($entry.filename)" ([int]($points * [int]$entry.scale.TrimEnd('x')))
+        $points = [double]::Parse(
+            $entry.size.Split('x')[0],
+            [Globalization.CultureInfo]::InvariantCulture
+        )
+        $size = [int]($points * [int]$entry.scale.TrimEnd('x'))
+        Save-Icon $appleMaster "$iconSet\$($entry.filename)" $size
     }
 }
+
 $densities = @{ mdpi = 48; hdpi = 72; xhdpi = 96; xxhdpi = 144; xxxhdpi = 192 }
 foreach ($density in $densities.GetEnumerator()) {
-    Write-AppIcon "android/app/src/main/res/mipmap-$($density.Key)/ic_launcher.png" $density.Value
+    Save-Icon $androidMaster "android\app\src\main\res\mipmap-$($density.Key)\ic_launcher.png" $density.Value
 }
 
-# Keep the card stack and droplet inside the central 66 dp safe circle.
-$layerRoot = 'android/app/src/main/res/drawable-nodpi'
-foreach ($entry in @(@{Name='sometime_foreground'; Image=$foreground}, @{Name='sometime_monochrome'; Image=$monochrome})) {
-    $layer = New-Canvas 432 $false
-    Draw-Layer $layer $entry.Image 0.60
-    Save-Icon $layer "$layerRoot/$($entry.Name).png"
-    $layer.Dispose()
-}
-$layer = New-Canvas 432 $true
-Draw-Layer $layer $background 1
-Save-Icon $layer "$layerRoot/sometime_background.png"
-$layer.Dispose()
-Write-AppIcon 'web/favicon.png' 32
+Save-Icon $appleMaster 'web\favicon.png' 32
 foreach ($size in @(192, 512)) {
-    Write-AppIcon "web/icons/Icon-$size.png" $size
-    Write-AppIcon "web/icons/Icon-maskable-$size.png" $size
+    Save-Icon $appleMaster "web\icons\Icon-$size.png" $size
+    Save-Icon $appleMaster "web\icons\Icon-maskable-$size.png" $size
 }
-$source.Dispose()
-$foreground.Dispose()
-$background.Dispose()
-$monochrome.Dispose()
+
+Copy-Item -LiteralPath (Join-Path $assetRoot 'Android_Full_Icon.png') -Destination (Join-Path $projectRoot 'store\google-play-icon.png') -Force
+$appleMaster.Dispose()
+$androidMaster.Dispose()
 Write-Output 'The Sometime platform icons are complete.'

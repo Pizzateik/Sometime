@@ -9,7 +9,7 @@ The Apache License 2.0 does not grant permission to use these items as the name,
 - Original Sometime brand and marketing artwork.
 - Membership Card artwork created for Sometime.
 
-This includes the source assets in `assets/icon/` and `assets/Own Assets/`. It also includes their generated Android, iOS, web, store, and documentation copies.
+This includes the source assets in `assets/icon/`, `assets/gradients/`, and `assets/masks/`. It also includes their generated Android, iOS, web, store, and documentation copies.
 
 You may use the Sometime name to identify this project or describe the origin of the source code. Other use requires written permission from Eik.
 

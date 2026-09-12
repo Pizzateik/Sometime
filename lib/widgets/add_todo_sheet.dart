@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 
 import '../app/app_theme.dart';
 import '../app/app_strings.dart';
-import '../app/sometime_icons.dart';
 import '../models/todo.dart';
 import '../models/todo_space.dart' show isSameLocalDate;
 import '../models/task_details.dart';
@@ -449,62 +448,94 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                                       ),
                                     ],
                                   ),
-                                  child: ClipRRect(
-                                    borderRadius: radius,
-                                    child: ColoredBox(
-                                      color: Color.lerp(
-                                        context.appColors.accent,
-                                        colors.creationSurface,
-                                        const Interval(
-                                          0,
-                                          0.65,
-                                        ).transform(progress),
-                                      )!,
-                                      child: Stack(
-                                        fit: StackFit.expand,
-                                        children: [
-                                          if (iconOpacity > 0)
-                                            Center(
-                                              child: Opacity(
-                                                opacity: iconOpacity,
-                                                child: Transform.rotate(
-                                                  angle: progress * math.pi / 4,
-                                                  alignment: Alignment.center,
-                                                  child: SometimeActionIconBox(
-                                                    glyph: SometimeActionGlyph
-                                                        .plus,
-                                                    color: context
-                                                        .appColors
-                                                        .onAccent,
-                                                    size: 26,
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: radius,
+                                        child: ColoredBox(
+                                          color: Color.lerp(
+                                            context.appColors.accent,
+                                            colors.creationSurface,
+                                            const Interval(
+                                              0,
+                                              0.65,
+                                            ).transform(progress),
+                                          )!,
+                                          child: Stack(
+                                            fit: StackFit.expand,
+                                            children: [
+                                              if (iconOpacity > 0)
+                                                Center(
+                                                  child: Opacity(
+                                                    opacity: iconOpacity,
+                                                    child: Transform.rotate(
+                                                      angle:
+                                                          progress *
+                                                          math.pi /
+                                                          4,
+                                                      alignment:
+                                                          Alignment.center,
+                                                      child: SometimeActionIconBox(
+                                                        glyph:
+                                                            SometimeActionGlyph
+                                                                .plus,
+                                                        color: context
+                                                            .appColors
+                                                            .onAccent,
+                                                        size: 26,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              OverflowBox(
+                                                alignment: Alignment.topLeft,
+                                                minWidth: width,
+                                                maxWidth: width,
+                                                minHeight: height,
+                                                maxHeight: height,
+                                                child: IgnorePointer(
+                                                  ignoring:
+                                                      progress < 1 || _closing,
+                                                  child: Opacity(
+                                                    opacity: contentOpacity,
+                                                    child: Transform.translate(
+                                                      offset: Offset(
+                                                        0,
+                                                        12 *
+                                                            (1 -
+                                                                contentOpacity),
+                                                      ),
+                                                      child: child,
+                                                    ),
                                                   ),
                                                 ),
                                               ),
-                                            ),
-                                          OverflowBox(
-                                            alignment: Alignment.topLeft,
-                                            minWidth: width,
-                                            maxWidth: width,
-                                            minHeight: height,
-                                            maxHeight: height,
-                                            child: IgnorePointer(
-                                              ignoring:
-                                                  progress < 1 || _closing,
-                                              child: Opacity(
-                                                opacity: contentOpacity,
-                                                child: Transform.translate(
-                                                  offset: Offset(
-                                                    0,
-                                                    12 * (1 - contentOpacity),
-                                                  ),
-                                                  child: child,
-                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        right: 16,
+                                        bottom: keyboardInset + safeBottom + 16,
+                                        child: IgnorePointer(
+                                          ignoring: progress < 1 || _closing,
+                                          child: Opacity(
+                                            opacity: contentOpacity,
+                                            child: Transform.translate(
+                                              offset: Offset(
+                                                0,
+                                                12 * (1 - contentOpacity),
+                                              ),
+                                              child: _buildSubmitButton(
+                                                context,
                                               ),
                                             ),
                                           ),
-                                        ],
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -520,6 +551,37 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSubmitButton(BuildContext context) {
+    final colors = context.appColors;
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: _textController,
+      builder: (context, value, _) {
+        final canSubmit = value.text.trim().isNotEmpty;
+        return Pressable(
+          radius: AddTodoButton.radius,
+          label: widget.initialDraft?.title.isNotEmpty != true
+              ? context.strings.addTask
+              : context.strings.saveChanges,
+          onPressed: canSubmit ? _submit : null,
+          builder: (context, state) => AnimatedContainer(
+            duration: AppMotion.duration(context, AppMotion.color),
+            width: AddTodoButton.width,
+            height: AddTodoButton.height,
+            decoration: BoxDecoration(
+              color: canSubmit ? colors.accent : colors.track,
+              borderRadius: BorderRadius.circular(AddTodoButton.radius),
+            ),
+            child: SometimeActionIconBox(
+              glyph: SometimeActionGlyph.arrowUp,
+              size: 22,
+              color: canSubmit ? colors.onAccent : colors.secondary,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -588,72 +650,42 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: RecognizedTextField(
-                                    controller: _textController,
-                                    ranges: _titleRecognitionRanges,
-                                    textStyle: titleStyle,
-                                    highlightColor: colors.recognitionHighlight,
-                                    highlightKey: const ValueKey(
-                                      'todo-title-recognition-highlight',
-                                    ),
-                                    child: TextField(
-                                      key: const ValueKey('todo-title-field'),
-                                      controller: _textController,
-                                      focusNode: _focusNode,
-                                      minLines: 1,
-                                      maxLines: 3,
-                                      textCapitalization:
-                                          TextCapitalization.sentences,
-                                      textInputAction: TextInputAction.done,
-                                      keyboardType: TextInputType.text,
-                                      keyboardAppearance: Theme.of(context)
-                                          .brightness,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter
-                                            .singleLineFormatter,
-                                      ],
-                                      cursorWidth: 1.5,
-                                      cursorRadius: const Radius.circular(1),
-                                      style: titleStyle,
-                                      decoration: InputDecoration(
-                                        hintText: context.strings.title,
-                                        hintStyle: TextStyle(
-                                          color: colors.secondary,
-                                        ),
-                                      ),
-                                      onSubmitted: (_) => _focusNode.unfocus(),
-                                    ),
-                                  ),
-                                ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: RecognizedTextField(
+                              controller: _textController,
+                              ranges: _titleRecognitionRanges,
+                              textStyle: titleStyle,
+                              highlightColor: colors.recognitionHighlight,
+                              highlightKey: const ValueKey(
+                                'todo-title-recognition-highlight',
                               ),
-                              const SizedBox(width: 8),
-                              Pressable(
-                                label: context.strings.closeInput,
-                                onPressed: () => Navigator.of(context).pop(),
-                                radius: 12,
-                                builder: (context, state) => Container(
-                                  width: AppSpace.touch,
-                                  height: AppSpace.touch,
-                                  decoration: BoxDecoration(
-                                    color: state.pressed || state.hovered
-                                        ? colors.track
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Icon(
-                                    SometimeIcons.x,
-                                    size: 20,
-                                    color: colors.secondary,
-                                  ),
+                              child: TextField(
+                                key: const ValueKey('todo-title-field'),
+                                controller: _textController,
+                                focusNode: _focusNode,
+                                minLines: 1,
+                                maxLines: 3,
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                                textInputAction: TextInputAction.done,
+                                keyboardType: TextInputType.text,
+                                keyboardAppearance: Theme.of(context)
+                                    .brightness,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter
+                                      .singleLineFormatter,
+                                ],
+                                cursorWidth: 1.5,
+                                cursorRadius: const Radius.circular(1),
+                                style: titleStyle,
+                                decoration: InputDecoration(
+                                  hintText: context.strings.title,
+                                  hintStyle: TextStyle(color: colors.secondary),
                                 ),
+                                onSubmitted: (_) => _focusNode.unfocus(),
                               ),
-                            ],
+                            ),
                           ),
                           const SizedBox(height: 8),
                           RecognizedTextField(
@@ -705,51 +737,13 @@ class _AddTodoSheetState extends State<AddTodoSheet> {
                               if (mounted) setState(() => _details = value);
                             },
                             onPinChanged: (value) {
-                              if (mounted) setState(() => _isPinned = value);
+                              if (mounted) {
+                                setState(() => _isPinned = value);
+                              }
                             },
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpace.lg),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ValueListenableBuilder<TextEditingValue>(
-                      valueListenable: _textController,
-                      builder: (context, value, _) {
-                        final canSubmit = value.text.trim().isNotEmpty;
-                        return Pressable(
-                          radius: AddTodoButton.radius,
-                          label: widget.initialDraft?.title.isNotEmpty != true
-                              ? context.strings.addTask
-                              : context.strings.saveChanges,
-                          onPressed: canSubmit ? _submit : null,
-                          builder: (context, state) => AnimatedContainer(
-                            duration: AppMotion.duration(
-                              context,
-                              AppMotion.color,
-                            ),
-                            width: AddTodoButton.width,
-                            height: AddTodoButton.height,
-                            decoration: BoxDecoration(
-                              color: canSubmit
-                                  ? context.appColors.accent
-                                  : colors.track,
-                              borderRadius: BorderRadius.circular(
-                                AddTodoButton.radius,
-                              ),
-                            ),
-                            child: SometimeActionIconBox(
-                              glyph: SometimeActionGlyph.arrowUp,
-                              size: 22,
-                              color: canSubmit
-                                  ? context.appColors.onAccent
-                                  : colors.secondary,
-                            ),
-                          ),
-                        );
-                      },
                     ),
                   ),
                 ],

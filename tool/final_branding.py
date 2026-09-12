@@ -68,7 +68,7 @@ for name in ('sometime_foreground.png', 'sometime_monochrome.png', 'sometime_bac
 sheet = Image.new('RGB', (800, 800), 'white')
 draw = ImageDraw.Draw(sheet)
 for i in range(1, 17):
-    image = Image.open(root / f'assets/Own Assets/Gradients/image-mesh-gradient({i}).webp').convert('RGB').resize((200, 175))
+    image = Image.open(root / f'assets/gradients/image-mesh-gradient({i}).webp').convert('RGB').resize((200, 175))
     x, y = ((i - 1) % 4) * 200, ((i - 1) // 4) * 200
     sheet.paste(image, (x, y))
     draw.text((x + 5, y + 179), str(i), fill='black')

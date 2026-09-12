@@ -52,4 +52,4 @@ The iOS build also needs a Mac with Xcode.
 The local APKs use a development signing key.
 Store distribution requires a release key and the correct application identifiers.
 
-The native Android captures show the [main screen](previews/android-home.png) and the [input surface with its keyboard](previews/android-sheet.png).
+The README promo strip uses the six frames in `assets/screenshots`.

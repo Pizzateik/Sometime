@@ -28,9 +28,10 @@ The app does not write to an external calendar.
 
 # Icons and Android build
 
-The icon generator reads the three PNG source files in `assets/icon`.
+The icon generator reads the Apple and Android master PNG files in `assets/icon`.
 Android 26 and later use separate foreground and background layers.
 Android 33 and later also use the supplied monochrome layer.
+Source-controlled vector files define the adaptive and monochrome layers.
 The launcher controls themed icon colors. The icon code does not depend on the Flutter appearance setting.
 iOS uses the opaque color composite. All generated assets can be recreated with `tool/generate_icons.ps1`.
 

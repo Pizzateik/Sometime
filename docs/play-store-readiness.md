@@ -15,7 +15,6 @@ The code checks pass. The current artifacts are local test builds, not signed Pl
 - The bundle uses membership WebP gradients. It contains no old gradient PNG files.
 - App text uses Geist. The membership display name uses Parisienne. App icon mappings use Phosphor.
 - Light and dark creation previews show clear selected segments, weekday buttons, and monthly buttons.
-- Main, settings, appearance, notification, language, and data screens have captured previews in `previews/audit`.
 
 ## FIXED
 

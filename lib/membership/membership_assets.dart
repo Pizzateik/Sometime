@@ -20,13 +20,13 @@ abstract final class MembershipAssets {
       ? Colors.white
       : Colors.black;
   static const shapes = [
-    'assets/Own Assets/MembershipCard Masks/MemberCard_GradientMask_01.svg',
-    'assets/Own Assets/MembershipCard Masks/MemberCard_GradientMask_02.svg',
-    'assets/Own Assets/MembershipCard Masks/MemberCard_GradientMask_03.svg',
+    'assets/masks/MemberCard_GradientMask_01.svg',
+    'assets/masks/MemberCard_GradientMask_02.svg',
+    'assets/masks/MemberCard_GradientMask_03.svg',
   ];
 
   static final gradients = List<String>.unmodifiable([
     for (var index = 1; index <= 16; index++)
-      'assets/Own Assets/Gradients/image-mesh-gradient($index).webp',
+      'assets/gradients/image-mesh-gradient($index).webp',
   ]);
 }

@@ -1,8 +1,18 @@
 <p align="center">
-  <img src="assets/icon/Android_Full_Icon.png" alt="Sometime app icon" width="128">
+  <img src="assets/icon/Icon_Material_Shape.png" alt="Sometime app icon" width="128">
 </p>
 
 <h1 align="center">Sometime</h1>
+
+<p align="center">
+  <br>
+  <img src="assets/screenshots/Frame%201.png" alt="Sometime screen 1" width="140">
+  <img src="assets/screenshots/Frame%202.png" alt="Sometime screen 2" width="140">
+  <img src="assets/screenshots/Frame%203.png" alt="Sometime screen 3" width="140">
+  <img src="assets/screenshots/Frame%204.png" alt="Sometime screen 4" width="140">
+  <img src="assets/screenshots/Frame%205.png" alt="Sometime screen 5" width="140">
+  <img src="assets/screenshots/Frame%206.png" alt="Sometime screen 6" width="140">
+</p>
 
 <p align="center">
   <strong>Today. Soon. Sometime.</strong><br>
@@ -12,19 +22,6 @@
 <p align="center">
   Organization should reduce organization, not create more.
 </p>
-
-<!--
-TODO: Add final product screenshots before the first public release.
-
-<p align="center">
-  <img src="docs/images/home.png" alt="Sometime home screen" width="210">
-  <img src="docs/images/create.png" alt="Creating a task in Sometime" width="210">
-  <img src="docs/images/widget.png" alt="Sometime Android widget" width="210">
-  <img src="docs/images/appearance.png" alt="Sometime appearance settings" width="210">
-</p>
--->
-
-<p align="center"><em>Product screenshots will be added before the first public release.</em></p>
 
 Most todo apps place something that matters today beside something you may want to do next month. Sometime separates these intentions into three broad horizons. You can use it without projects, folders, tags, accounts, or another planning system.
 

@@ -470,12 +470,6 @@ object SometimeWidgets {
                 requestCode = pendingIntentCode(widgetId, "plus"),
             ),
         )
-        val safeEnd = if (showPlus) {
-            (48 * context.resources.displayMetrics.density).roundToInt()
-        } else {
-            0
-        }
-        views.setViewPadding(R.id.widget_rows, 0, 0, safeEnd, 0)
         views.setRemoteAdapter(
             R.id.widget_rows,
             collectionIntent(context, widgetId, width, height),

@@ -141,7 +141,7 @@ class _SometimeIconHeroState extends State<SometimeIconHero>
     final icon = SizedBox.square(
       dimension: widget.dimension,
       child: SvgAssetMask(
-        asset: 'assets/Own Assets/Setting_IconShape_Mask.svg',
+        asset: 'assets/masks/Setting_IconShape_Mask.svg',
         child: ColoredBox(
           color: AppConfig.iconBackground,
           child: Padding(
