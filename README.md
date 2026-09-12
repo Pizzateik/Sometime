@@ -5,11 +5,11 @@
 <h1 align="center">Sometime</h1>
 
 <p align="center">
-  <a href="https://github.com/Pizzateik/Sometime/releases"><img src="https://img.shields.io/github/v/release/Pizzateik/Sometime?include_prereleases=true&amp;sort=semver&amp;display_name=tag&amp;style=flat-square&amp;label=Latest%20release" alt="Latest release"></a>
-  <a href="https://github.com/Pizzateik/Sometime/releases"><img src="https://img.shields.io/github/downloads/Pizzateik/Sometime/total?style=flat-square&amp;label=GitHub%20downloads" alt="GitHub downloads"></a>
+  <a href="https://github.com/Pizzateik/Sometime/releases"><img src="https://img.shields.io/badge/Latest%20release-v1.0.0--rc.1-orange?style=flat-square" alt="Latest release: v1.0.0-rc.1"></a>
+  <a href="https://github.com/Pizzateik/Sometime/releases"><img src="https://img.shields.io/badge/GitHub%20downloads-private%20repository-555555?style=flat-square" alt="GitHub downloads are private"></a>
   <img src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square&amp;logo=android&amp;logoColor=white" alt="Android 7.0 or later">
   <img src="https://img.shields.io/badge/Flutter-3.47.2-02569B?style=flat-square&amp;logo=flutter&amp;logoColor=white" alt="Flutter 3.47.2">
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Pizzateik/Sometime?style=flat-square&amp;label=Apache-2.0" alt="Apache-2.0 license"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue?style=flat-square" alt="Apache-2.0 license"></a>
 </p>
 
 <p align="center">
