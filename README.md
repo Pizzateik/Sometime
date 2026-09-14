@@ -5,91 +5,57 @@
 <h1 align="center">Sometime</h1>
 
 <p align="center">
-  <a href="https://github.com/Pizzateik/Sometime/releases"><img src="https://img.shields.io/badge/Latest%20release-v1.0.0--rc.1-orange?style=flat-square" alt="Latest release: v1.0.0-rc.1"></a>
-  <a href="https://github.com/Pizzateik/Sometime/releases"><img src="https://img.shields.io/badge/GitHub%20downloads-private%20repository-555555?style=flat-square" alt="GitHub downloads are private"></a>
+  <strong>Today. Soon. Sometime.</strong><br>
+  Not everything belongs on today's list.
+</p>
+
+<p align="center">
+  <a href="https://github.com/Pizzateik/Sometime/releases"><img src="https://img.shields.io/github/v/tag/Pizzateik/Sometime?style=flat-square&amp;label=release&amp;sort=semver&amp;filter=v*" alt="Latest GitHub tag"></a>
+  <a href="https://github.com/Pizzateik/Sometime/releases"><img src="https://img.shields.io/github/downloads/Pizzateik/Sometime/total?style=flat-square&amp;label=downloads" alt="GitHub downloads"></a>
   <img src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square&amp;logo=android&amp;logoColor=white" alt="Android 7.0 or later">
   <img src="https://img.shields.io/badge/Flutter-3.47.2-02569B?style=flat-square&amp;logo=flutter&amp;logoColor=white" alt="Flutter 3.47.2">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue?style=flat-square" alt="Apache-2.0 license"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Pizzateik/Sometime?style=flat-square&amp;label=license" alt="Apache-2.0 license"></a>
 </p>
 
 <p align="center">
-  <br>
-  <img src="assets/screenshots/Frame%201.png" alt="Sometime screen 1" width="140">
-  <img src="assets/screenshots/Frame%202.png" alt="Sometime screen 2" width="140">
-  <img src="assets/screenshots/Frame%203.png" alt="Sometime screen 3" width="140">
-  <img src="assets/screenshots/Frame%204.png" alt="Sometime screen 4" width="140">
-  <img src="assets/screenshots/Frame%205.png" alt="Sometime screen 5" width="140">
-  <img src="assets/screenshots/Frame%206.png" alt="Sometime screen 6" width="140">
+  <img src="assets/screenshots/Frame%201.png" alt="Today list" width="180">&nbsp;&nbsp;
+  <img src="assets/screenshots/Frame%202.png" alt="Soon list" width="180">&nbsp;&nbsp;
+  <img src="assets/screenshots/Frame%203.png" alt="Sometime list" width="180">
 </p>
-
 <p align="center">
-  <strong>Today. Soon. Sometime.</strong><br>
-  A calm todo app organized around when something matters, not where it belongs.
+  <img src="assets/screenshots/Frame%204.png" alt="Task planning" width="180">&nbsp;&nbsp;
+  <img src="assets/screenshots/Frame%205.png" alt="Spaces" width="180">&nbsp;&nbsp;
+  <img src="assets/screenshots/Frame%206.png" alt="Appearance settings" width="180">
 </p>
 
-<p align="center">
-  Organization should reduce organization, not create more.
-</p>
+## Why Sometime exists
 
-Most todo apps place something that matters today beside something you may want to do next month. Sometime separates these intentions into three broad horizons. You can use it without projects, folders, tags, accounts, or another planning system.
+Most task apps mix today's work with ideas that can wait. Sometime separates tasks by when they matter.
 
-## Three horizons
+Use **Today**, **Soon**, and **Sometime** without projects, tags, or a complex planning system.
 
-### Today
+## What Sometime does
 
-Keep the tasks that matter now in view.
+- Write a task and use natural dates and times when you need them.
+- Add local reminders and recurring schedules.
+- Pin important tasks as Android notifications.
+- See current tasks in Android home screen widgets.
+- Use Spaces to separate parts of your life or work.
+- Choose light, dark, soft, Material You, or custom colors.
 
-### Soon
+## Private, offline-first, and open source
 
-Set aside tasks that need attention in the near future.
+Sometime stores your tasks on your device. It needs no account and has no advertising, analytics, task telemetry, or cloud backend.
 
-### Sometime
-
-Remember an idea without putting it on today's list.
-
-## Just write it down
-
-Create a task and add details only when you need them. Sometime recognizes natural dates and times. It also supports local reminders and recurring tasks.
-
-## Keep important tasks close
-
-Pin a task as an Android notification when it must stay visible. Add a Sometime widget to a home screen for quick access to current tasks.
-
-## Make it yours
-
-Use Spaces for separate parts of life or work. Choose light, dark, or soft appearance options. On supported Android devices, use Material You colors or select a custom color.
-
-## Private by default
-
-- No account is required.
-- Sometime has no analytics.
-- Sometime has no advertising.
-- Sometime sends no task telemetry.
-- Sometime has no cloud backend of its own.
-- Your tasks remain on your device.
+The source code is public under the Apache License 2.0. The app name and brand assets have separate terms.
 
 ## Download
 
-<p align="center">
-  <a href="https://github.com/Pizzateik/Sometime/releases"><strong>View Android release candidates</strong></a>
-</p>
+Download the current Android release candidate from [GitHub Releases](https://github.com/Pizzateik/Sometime/releases/tag/v1.0.0-rc.1). GitHub marks it as a prerelease.
 
-The APK is distributed through [GitHub Releases](https://github.com/Pizzateik/Sometime/releases). GitHub marks release candidates as prereleases.
+Sometime requires Android 7.0 (API 24) or later.
 
-## Requirements
-
-- Android 7.0 (API 24) or later.
-
-## Architecture
-
-Sometime uses Flutter for its shared interface and application logic. It stores task data on the device. Native code connects the app to system reminders, notifications, and home screen widgets.
-
-- Flutter and Dart for the app interface and application logic.
-- Local-first persistence for tasks and settings.
-- Kotlin for Android system integrations.
-- Swift for iOS integrations where required.
-
-## Development
+## Development and F-Droid build
 
 Use Flutter 3.47.2 with a compatible Dart 3.13 SDK.
 
@@ -100,33 +66,31 @@ flutter pub get
 flutter run
 ```
 
-Run the project checks before you open a pull request.
+Run the project checks:
 
 ```bash
 flutter analyze
 flutter test
 ```
 
-Build the F-Droid APK without Play Billing or production signing credentials.
+Build the F-Droid flavor without Play Billing or production signing credentials:
 
 ```bash
 flutter build apk --release --flavor fdroid
 ```
 
-This flavor keeps the app offline and excludes Play Billing from the APK.
-
-Production signing credentials are not included. Debug builds do not need them.
-
-## Status
-
-Sometime is preparing its first 1.0 release candidate for Android. No store listing is available yet.
+This command creates a local APK. Sometime is not available through F-Droid yet.
 
 ## Contributing
 
-Issues and focused pull requests will be welcome after the repository becomes public.
+Bug reports, feature requests, and focused pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before you start.
+
+Report security issues privately as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
-Sometime source code is licensed under the [Apache License 2.0](LICENSE). Copyright 2026 Eik.
+Sometime source code uses the [Apache License 2.0](LICENSE). Copyright 2026 Eik.
 
-The Sometime name, app icon, logo, and original artwork have [separate brand terms](assets/BRAND_ASSETS_LICENSE.md). Bundled third-party resources remain under their [existing licenses](THIRD_PARTY_NOTICES.md).
+The Sometime name, app icon, logo, and original artwork have [separate brand terms](assets/BRAND_ASSETS_LICENSE.md). Third-party resources keep their [existing licenses](THIRD_PARTY_NOTICES.md).
+
+<p align="center">Made with ❤️ by Eik</p>

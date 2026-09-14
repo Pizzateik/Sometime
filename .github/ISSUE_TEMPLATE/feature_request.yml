@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest an idea that fits Sometime.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What need would this change address?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed idea
+      description: Describe the change you want.
+    validations:
+      required: true
+  - type: textarea
+    id: fit
+    attributes:
+      label: Why does this fit Sometime?
+    validations:
+      required: true

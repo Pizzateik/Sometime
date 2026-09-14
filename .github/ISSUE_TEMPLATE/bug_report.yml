@@ -1,0 +1,56 @@
+name: Bug report
+description: Report a problem in Sometime.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: input
+    id: sometime-version
+    attributes:
+      label: Sometime version
+      placeholder: v1.0.0-rc.1
+    validations:
+      required: true
+  - type: input
+    id: android-version
+    attributes:
+      label: Android version
+      placeholder: Android 15
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      placeholder: Google Pixel 8
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Tap ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Screenshots or logs
+      description: Add screenshots or logs if they help explain the problem. Remove private information first.
+    validations:
+      required: false
