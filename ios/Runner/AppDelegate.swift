@@ -2,12 +2,14 @@ import Flutter
 import UIKit
 import UserNotifications
 import WidgetKit
+import AppIntents
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
   private var notifications: TaskNotifications?
   private var sharedEngine: FlutterEngine?
   private var widgets: SometimeWidgetBridge?
+  private var assistant: SometimeAssistantBridge?
 
   override func application(
     _ application: UIApplication,
@@ -26,6 +28,7 @@ import WidgetKit
     GeneratedPluginRegistrant.register(with: engine)
     notifications = TaskNotifications(messenger: engine.binaryMessenger)
     widgets = SometimeWidgetBridge(messenger: engine.binaryMessenger)
+    assistant = SometimeAssistantBridge(messenger: engine.binaryMessenger)
     return engine
   }
   override func userNotificationCenter(_ center: UNUserNotificationCenter,
@@ -46,6 +49,100 @@ import WidgetKit
     TaskNotifications.enqueue(task: task, space: space, action: action)
     _ = taskEngine()
     notifications?.wake(completion: completionHandler)
+  }
+}
+
+final class SometimeAssistantBridge {
+  private static let pendingKey = "sometime.assistant.pending"
+  private static var current: SometimeAssistantBridge?
+  private let channel: FlutterMethodChannel
+
+  init(messenger: FlutterBinaryMessenger) {
+    channel = FlutterMethodChannel(name: "sometime/assistant", binaryMessenger: messenger)
+    Self.current = self
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "pending": result(Self.pending())
+      case "ack":
+        guard let id = call.arguments as? String else { result(nil); return }
+        UserDefaults.standard.set(Self.pending().filter { $0["id"] != id }, forKey: Self.pendingKey)
+        result(nil)
+      default: result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private static func pending() -> [[String: String]] {
+    UserDefaults.standard.array(forKey: pendingKey) as? [[String: String]] ?? []
+  }
+
+  static func enqueue(title: String, category: String?, date: String?, time: String?) {
+    var entry = ["id": UUID().uuidString, "title": title]
+    if let category { entry["category"] = category }
+    if let date { entry["date"] = date }
+    if let time { entry["time"] = time }
+    UserDefaults.standard.set(pending() + [entry], forKey: pendingKey)
+    current?.channel.invokeMethod("newTask", arguments: nil)
+  }
+}
+
+@available(iOS 16.0, *)
+enum SometimeAssistantCategory: String, AppEnum {
+  case today, soon, someday
+
+  static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Category")
+  static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
+    .today: "Today", .soon: "Soon", .someday: "Sometime"
+  ]
+}
+
+@available(iOS 16.0, *)
+struct AddSometimeTaskIntent: AppIntent {
+  static var title: LocalizedStringResource = "Add Task to Sometime"
+  static var description = IntentDescription("Create a task with an optional category, date, and time.")
+  static var openAppWhenRun = true
+
+  @Parameter(title: "Task") var task: String
+  @Parameter(title: "Category") var category: SometimeAssistantCategory?
+  @Parameter(title: "Date") var date: Date?
+  @Parameter(title: "Time") var time: Date?
+
+  static var parameterSummary: some ParameterSummary {
+    Summary("Add \(\.$task) to \(\.$category) on \(\.$date) at \(\.$time)")
+  }
+
+  @MainActor
+  func perform() async throws -> some IntentResult {
+    let title = task.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !title.isEmpty else { return .result() }
+    let calendar = Calendar.current
+    let day = date.map {
+      let parts = calendar.dateComponents([.year, .month, .day], from: $0)
+      return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+    let clock = time.map {
+      let parts = calendar.dateComponents([.hour, .minute], from: $0)
+      return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
+    }
+    SometimeAssistantBridge.enqueue(title: title, category: category?.rawValue, date: day, time: clock)
+    return .result()
+  }
+}
+
+@available(iOS 16.0, *)
+struct SometimeAppShortcuts: AppShortcutsProvider {
+  static var appShortcuts: [AppShortcut] {
+    AppShortcut(
+      intent: AddSometimeTaskIntent(),
+      phrases: [
+        "Add \(\.$task) in \(.applicationName)",
+        "Add \(\.$task) to \(.applicationName)",
+        "Create \(\.$task) in \(.applicationName)",
+        "Add a task in \(.applicationName)"
+      ],
+      shortTitle: "Add Task",
+      systemImageName: "plus.circle"
+    )
   }
 }
 
@@ -220,6 +317,3 @@ final class TaskNotifications {
     }
   }
 }
-
-
-

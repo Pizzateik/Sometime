@@ -8,6 +8,10 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+dependencies {
+    implementation("androidx.core:core:1.13.1")
+}
+
 val releaseProperties = Properties()
 val releasePropertiesFile = System.getenv("SOMETIME_SIGNING_PROPERTIES")
     ?.takeIf { it.isNotBlank() }

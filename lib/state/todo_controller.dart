@@ -237,12 +237,18 @@ class TodoController extends ChangeNotifier {
     return true;
   }
 
-  String addTodo(String spaceId, TodoDraft draft) {
+  String addTodo(String spaceId, TodoDraft draft, {String? requestId}) {
     if (draft.title.trim().isEmpty) {
       throw ArgumentError('The task title is empty.');
     }
     final now = clock();
-    final id = '${now.microsecondsSinceEpoch}-${_nextId++}';
+    final id = requestId == null
+        ? '${now.microsecondsSinceEpoch}-${_nextId++}'
+        : 'assistant-$requestId';
+    if (_spaces.any((space) => space.todos.any((todo) => todo.id == id)) ||
+        _archive.any((entry) => entry.todo.id == id)) {
+      return id;
+    }
     _updateSpace(spaceId, (todos) {
       final groupTodos = _orderedActive(todos, draft.group);
       return [

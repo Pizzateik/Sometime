@@ -37,11 +37,18 @@ Use **Today**, **Soon**, and **Sometime** without projects, tags, or a complex p
 ## What Sometime does
 
 - Write a task and use natural dates and times when you need them.
+- Ask Siri or Google Assistant to add a task, with a category, date, or time. Tasks without a category go to Soon.
 - Add local reminders and recurring schedules.
 - Pin important tasks as Android notifications.
 - See current tasks in Android home screen widgets.
 - Use Spaces to separate parts of your life or work.
 - Choose light, dark, soft, Material You, or custom colors.
+
+## Voice task entry
+
+On iOS 16 or later, ask Siri to “add a task in Sometime” or use the **Add Task** action in Shortcuts. The action accepts a category, date, and time. On Android, Google Assistant App Actions can add a task to Sometime; English (US) phrases can include a category, date, and time. If no category is given, the task goes to **Soon**. Voice-created tasks use the first Space and do not enable a reminder unless you add one later.
+
+Google Assistant App Actions require a Google Play release and review. Gemini uses a separate AppFunctions integration, so Gemini task creation is not guaranteed by these App Actions.
 
 ## Private, offline-first, and open source
 

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="assistant_add_task_queries">
+        <item>add $title to $category on $date at $time</item>
+        <item>add $title to $category on $date</item>
+        <item>add $title to $category at $time</item>
+        <item>add $title on $date at $time</item>
+        <item>add $title on $date</item>
+        <item>add $title at $time</item>
+        <item>add $title to $category</item>
+        <item>add task $title</item>
+        <item>create task $title</item>
+    </string-array>
+</resources>

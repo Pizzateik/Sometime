@@ -1,0 +1,7 @@
+# Native entry points
+
+Android creates a shared Flutter engine in `SometimeApplication`. `MainActivity` forwards new intents to the widget, notification, and assistant bridges. iOS creates its shared engine in `AppDelegate.taskEngine()` and the scene uses that engine. Native requests must wait for `TodoController.initialize()` before changing tasks.
+
+Assistant task requests are queued in Android SharedPreferences or iOS UserDefaults. `AssistantTaskBridge` drains the queue after startup and on resume, creates tasks through `TodoController`, and acknowledges each request only after task storage flushes. A request ID makes retries idempotent. The first space receives assistant tasks. An unspecified category means Soon; the saved `someday` group is shown as Sometime. Explicit date and time values and the app's natural date/time parser populate `TaskDetails`. Assistant creation does not turn on a reminder by default.
+
+Android Google Assistant App Actions are declared in `android/app/src/main/res/xml/shortcuts.xml`. Custom query patterns support English (US) task, category, date, and time phrases. App Actions require Google Play ingestion and review; test them with the App Actions test tool on a device. Gemini has a separate AppFunctions integration; these App Actions alone do not guarantee Gemini invocation. iOS uses an App Intent and App Shortcut in `ios/Runner/AppDelegate.swift` on iOS 16 and later. Its category, date, and time are editable in Shortcuts. Test Siri phrasing and parameter delivery on an iPhone with Xcode's App Shortcuts Preview.

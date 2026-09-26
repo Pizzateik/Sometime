@@ -63,7 +63,7 @@ Store submission is not approved by this report. The manual release checks above
 ## Build notes
 
 The audit used Flutter 3.47.2 and Dart 3.13.2 from the project SDK.
-Run each command from the project root. Use `.tools/flutter/bin/flutter.bat` if Flutter is not on PATH.
+Run each command from the project root. Flutter 3.47.2 must be available on PATH.
 
 The remaining Kotlin migration warning originates from `dynamic_color` 1.8.1.
 Follow the [Flutter migration guide](https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-app-developers) when a compatible dependency is available.

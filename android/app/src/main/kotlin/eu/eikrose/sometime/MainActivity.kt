@@ -12,12 +12,14 @@ class MainActivity : FlutterActivity() {
         TaskNotifications.activity = this
         TaskNotifications.receive(intent)
         SometimeWidgets.receive(intent)
+        AssistantTasks.receive(intent)
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         TaskNotifications.receive(intent)
         SometimeWidgets.receive(intent)
+        AssistantTasks.receive(intent)
     }
     override fun onResume() { super.onResume(); TaskNotifications.activity = this }
     override fun onDestroy() {

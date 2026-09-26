@@ -28,6 +28,7 @@ class SometimeApplication : Application() {
         engine = FlutterEngine(this)
         TaskNotifications.attach(this, engine)
         SometimeWidgets.attach(this, engine)
+        AssistantTasks.attach(this, engine)
         engine.dartExecutor.executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault())
     }
 }
@@ -317,4 +318,3 @@ class TaskNotificationReceiver : BroadcastReceiver() {
         catch (_: Exception) { pending.finish() }
     }
 }
-

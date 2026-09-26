@@ -5,10 +5,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$localFlutter = Join-Path $projectRoot '.tools\flutter\bin\flutter.bat'
+$localFlutter = Join-Path $env:LOCALAPPDATA 'Programs\Flutter\bin\flutter.bat'
 
 if (-not (Test-Path -LiteralPath $localFlutter)) {
-    throw 'Install the Flutter SDK in .tools/flutter before you use this script.'
+    $flutterCommand = Get-Command flutter.bat -ErrorAction SilentlyContinue
+    if ($flutterCommand) {
+        $localFlutter = $flutterCommand.Source
+    } else {
+        throw 'Install Flutter under %LOCALAPPDATA%\Programs\Flutter or add flutter to PATH.'
+    }
 }
 
 $env:PUB_CACHE = Join-Path $projectRoot '.tools\pub-cache'
