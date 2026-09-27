@@ -12,7 +12,7 @@ Sometime's Android application ID is `de.eikrose.sometime`. Keep that ID for all
 
 ## Submit to the official repository
 
-Fork [fdroiddata](https://gitlab.com/fdroid/fdroiddata), add `metadata/de.eikrose.sometime.yml`, and open a merge request. Its build block must point to the new source tag, use the `fdroid` flavor and `lib/main_fdroid.dart`, and specify the exact Flutter toolchain and resulting APK path. Validate the recipe with `fdroid lint de.eikrose.sometime` and the fdroiddata CI/build before requesting review. A local Flutter build alone does not prove that F-Droid's isolated builder can reproduce it.
+The proposed F-Droid build recipe is in `fdroid/metadata/de.eikrose.sometime.yml`. Copy it to a fork of [fdroiddata](https://gitlab.com/fdroid/fdroiddata) as `metadata/de.eikrose.sometime.yml`, then open a merge request. Its build block points to the `v1.0.0` source tag, uses the `fdroid` flavor and `lib/main_fdroid.dart`, and specifies Flutter 3.47.2 and the APK output path. Validate the recipe with `fdroid lint de.eikrose.sometime` and fdroiddata CI/build before requesting review. A local Flutter build alone does not prove that F-Droid's isolated builder can reproduce it.
 
 F-Droid normally signs source builds with its own per-app key. That signature differs from APKs published under a developer or Play key, so Android cannot upgrade between those channels in place. Decide whether to invest in a reproducible build and developer-signed binary verification **before** the first F-Droid publication if a shared signature matters. Do not upload a debug-signed APK as a release.
 

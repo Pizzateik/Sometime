@@ -1,10 +1,11 @@
-Sometime ordnet Aufgaben danach, wann sie wichtig werden: Heute, Demnächst oder Irgendwann. Datum und Uhrzeit kannst du bei Bedarf ergänzen, ohne alles in Projekte einteilen zu müssen.
+Viele Aufgabenlisten mischen das, was heute ansteht, mit Ideen für später. Sometime ordnet Aufgaben danach, wann sie wichtig werden: Heute, Demnächst oder Irgendwann. Ohne Projekte, Tags oder komplizierte Planung.
 
 * Erfasse Aufgaben mit natürlichen Datums- und Zeitangaben.
 * Nutze lokale Erinnerungen und wiederkehrende Aufgaben.
+* Pinne wichtige Aufgaben als Android-Benachrichtigung an.
+* Sieh deine Aufgaben in Android-Widgets.
 * Trenne Lebensbereiche mit Spaces.
-* Sieh Aufgaben in Android-Widgets und pinne wichtige Aufgaben als Benachrichtigung an.
-* Importiere und exportiere deine Aufgaben.
-* Wähle zwischen hellen, dunklen, Material-You- und eigenen Farben.
+* Wähle zwischen hellen, dunklen, soften, Material-You- und eigenen Farben.
+* Importiere und exportiere Aufgaben lokal.
 
-Deine Aufgaben bleiben auf deinem Gerät. Sometime braucht kein Konto und enthält weder Werbung noch Analyse, Aufgaben-Telemetrie oder eine Cloud-Anbindung. Die App funktioniert offline.
+Sometime speichert Aufgaben auf deinem Gerät. Die App braucht kein Konto und enthält weder Werbung noch Analyse, Aufgaben-Telemetrie oder eine eigene Cloud-Anbindung. Sie funktioniert offline.

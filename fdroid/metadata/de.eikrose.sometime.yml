@@ -1,0 +1,51 @@
+Categories:
+  - Productivity
+License: Apache-2.0
+AuthorName: Eik
+AuthorWebSite: https://eikrose.de
+WebSite: https://eikrose.de
+SourceCode: https://github.com/Pizzateik/Sometime
+IssueTracker: https://github.com/Pizzateik/Sometime/issues
+Changelog: https://github.com/Pizzateik/Sometime/releases
+Summary: Today. Soon. Sometime. A calm task list for ideas that can wait.
+Description: |-
+  Most task apps mix today's work with ideas that can wait. Sometime separates tasks by when they matter. Use Today, Soon, and Sometime without projects, tags, or a complex planning system.
+
+  * Write a task and use natural dates and times when you need them.
+  * Add local reminders and recurring schedules.
+  * Pin important tasks as Android notifications.
+  * See current tasks in Android home screen widgets.
+  * Use Spaces to separate parts of your life or work.
+  * Choose light, dark, soft, Material You, or custom colors.
+  * Import and export your tasks locally.
+
+  Sometime stores your tasks on your device. It needs no account and has no advertising, analytics, task telemetry, or cloud backend. The app works offline.
+RepoType: git
+Repo: https://github.com/Pizzateik/Sometime.git
+Builds:
+  - versionName: 1.0.0
+    versionCode: 5
+    commit: v1.0.0
+    output: build/app/outputs/flutter-apk/app-fdroid-release.apk
+    srclibs:
+      - flutter@3.47.2
+    rm:
+      - ios
+      - linux
+      - macos
+      - web
+      - windows
+    prebuild:
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter config --no-analytics
+      - $$flutter$$/bin/flutter pub get
+    scanignore:
+      - .pub-cache
+    build:
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter build apk --release --flavor fdroid
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+UpdateCheckData: 'pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+'
+CurrentVersion: 1.0.0
+CurrentVersionCode: 5
