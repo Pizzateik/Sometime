@@ -7,5 +7,6 @@ Viele Aufgabenlisten mischen das, was heute ansteht, mit Ideen für später. Som
 * Trenne Lebensbereiche mit Spaces.
 * Wähle zwischen hellen, dunklen, soften, Material-You- und eigenen Farben.
 * Importiere und exportiere Aufgaben lokal.
+* Füge Aufgaben per Sprache mit unterstützten Assistenten hinzu.
 
 Sometime speichert Aufgaben auf deinem Gerät. Die App braucht kein Konto und enthält weder Werbung noch Analyse, Aufgaben-Telemetrie oder eine eigene Cloud-Anbindung. Sie funktioniert offline.

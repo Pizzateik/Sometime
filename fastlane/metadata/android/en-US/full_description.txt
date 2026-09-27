@@ -7,5 +7,6 @@ Most task apps mix today's work with ideas that can wait. Sometime separates tas
 * Use Spaces to separate parts of your life or work.
 * Choose light, dark, soft, Material You, or custom colors.
 * Import and export your tasks locally.
+* Add tasks by voice with supported assistants.
 
 Sometime stores your tasks on your device. It needs no account and has no advertising, analytics, task telemetry, or cloud backend. The app works offline.
