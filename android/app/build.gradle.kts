@@ -58,9 +58,14 @@ gradle.taskGraph.whenReady {
 }
 
 android {
-    namespace = "eu.eikrose.sometime"
+    namespace = "de.eikrose.sometime"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -68,7 +73,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "eu.eikrose.sometime"
+        applicationId = "de.eikrose.sometime"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         // Read the app version from pubspec.yaml.
@@ -101,7 +106,8 @@ android {
     buildTypes {
         release {
             signingConfig = if (fdroidBuild) {
-                signingConfigs.getByName("debug")
+                // F-Droid signs the APK produced from source with its own key.
+                null
             } else {
                 signingConfigs.findByName("release")
             }

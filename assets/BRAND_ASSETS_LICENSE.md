@@ -1,16 +1,7 @@
-# Sometime brand assets
+# Sometime original artwork and name
 
-The Sometime source code is licensed under the Apache License 2.0. This file applies separately to Sometime brand assets.
+The original Sometime artwork by Eik is licensed under the [Apache License 2.0](../LICENSE). You may use, copy, modify, and distribute it under that license. This includes the app icon, logo, Membership Card artwork, marketing graphics, source assets in `assets/icon/`, `assets/gradients/`, `assets/masks/`, and `assets/screenshots/`, and their generated Android, iOS, web, store, and documentation copies.
 
-The Apache License 2.0 does not grant permission to use these items as the name, logo, icon, or identity of a derivative product:
+The Apache License 2.0 does not grant trademark rights to the Sometime name or logo. Trademark use is governed separately from copyright permission for the artwork. You may identify this project and its origin; do not imply that a modified app is endorsed by Eik.
 
-- The Sometime name.
-- The Sometime logo and app icon.
-- Original Sometime brand and marketing artwork.
-- Membership Card artwork created for Sometime.
-
-This includes the source assets in `assets/icon/`, `assets/gradients/`, and `assets/masks/`. It also includes their generated Android, iOS, web, store, and documentation copies.
-
-You may use the Sometime name to identify this project or describe the origin of the source code. Other use requires written permission from Eik.
-
-Third-party assets are not covered by these terms. They remain under their existing licenses and attribution requirements.
+Third-party assets are not covered by this grant. They keep their existing licenses and attribution requirements in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).

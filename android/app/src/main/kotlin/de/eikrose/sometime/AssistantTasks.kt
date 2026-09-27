@@ -1,4 +1,4 @@
-package eu.eikrose.sometime
+package de.eikrose.sometime
 
 import android.content.Context
 import android.content.Intent

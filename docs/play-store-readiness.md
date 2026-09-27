@@ -1,4 +1,4 @@
-﻿# PLAY STORE READINESS
+# PLAY STORE READINESS
 
 Audit date: September 12, 2026.
 The code checks pass. The current artifacts are local test builds, not signed Play Store uploads.
@@ -10,7 +10,7 @@ The code checks pass. The current artifacts are local test builds, not signed Pl
 - `flutter build apk --release --split-per-abi`: passed, 18.3 to 22.0 MB.
 - `flutter build appbundle --release`: passed, 55.7 MB (Play Store App Bundle).
 - The installed release APK passed an emulator cold start after force-stop. Saved tasks remained visible. The crash buffer was empty.
-- Android configuration: `eu.eikrose.sometime`, version 1.0.0-rc.1 (4), minimum SDK 24, target SDK 36, compile SDK 36.
+- Android configuration at the time of this audit: `eu.eikrose.sometime`, version 1.0.0-rc.1 (4), minimum SDK 24, target SDK 36, compile SDK 36. The 1.0.0 release changes the application ID to `de.eikrose.sometime` and version to 1.0.0 (5); rerun release verification before publishing.
 - The adaptive launcher icon includes foreground and monochrome layers. Its background is `#FF5C5C`.
 - The bundle uses membership WebP gradients. It contains no old gradient PNG files.
 - App text uses Geist. The membership display name uses Parisienne. App icon mappings use Phosphor.
@@ -32,7 +32,7 @@ The code checks pass. The current artifacts are local test builds, not signed Pl
 - New debug entitlement overrides carry a debug-only flag. Release code ignores that flag as an entitlement source.
 - Purchase setup follows settings load. Canceled purchases can retry, and purchase callbacks handle errors.
 - Android accepts an external release signing configuration from `~/.sometime-signing/key.properties` or `SOMETIME_SIGNING_PROPERTIES`.
-- The F-Droid flavor builds without Play Billing and uses debug signing for local builds.
+- The F-Droid flavor builds without Play Billing. Its release APK is unsigned for F-Droid to sign; use a debug build for local installation.
 - README architecture and notification notes now match the app.
 - Eliminated 17.7 MB uncompressed font bloat by removing redundant CJK fonts. App uses Geist for text and Parisienne for membership display names.
 - Protected state lookups, drag-drop handling, recurrence rules, and DateTime parser against null/bounds crashes.

@@ -2,19 +2,19 @@
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <capability android:name="actions.intent.CREATE_THING">
-        <intent android:targetPackage="eu.eikrose.sometime"
-            android:targetClass="eu.eikrose.sometime.MainActivity">
+        <intent android:targetPackage="de.eikrose.sometime"
+            android:targetClass="de.eikrose.sometime.MainActivity">
             <extra android:key="assistant_create" android:value="true" />
             <parameter android:name="thing.name" android:key="assistant_title"
                 android:required="true" />
         </intent>
-        <intent android:targetPackage="eu.eikrose.sometime"
-            android:targetClass="eu.eikrose.sometime.MainActivity" />
+        <intent android:targetPackage="de.eikrose.sometime"
+            android:targetClass="de.eikrose.sometime.MainActivity" />
     </capability>
     <capability android:name="custom.actions.intent.ADD_TASK"
         app:queryPatterns="@array/assistant_add_task_queries">
-        <intent android:targetPackage="eu.eikrose.sometime"
-            android:targetClass="eu.eikrose.sometime.MainActivity">
+        <intent android:targetPackage="de.eikrose.sometime"
+            android:targetClass="de.eikrose.sometime.MainActivity">
             <extra android:key="assistant_create" android:value="true" />
             <parameter android:name="title" android:key="assistant_title"
                 android:mimeType="https://schema.org/Text" android:required="true" />
@@ -25,7 +25,7 @@
             <parameter android:name="time" android:key="assistant_time"
                 android:mimeType="https://schema.org/Time" />
         </intent>
-        <intent android:targetPackage="eu.eikrose.sometime"
-            android:targetClass="eu.eikrose.sometime.MainActivity" />
+        <intent android:targetPackage="de.eikrose.sometime"
+            android:targetClass="de.eikrose.sometime.MainActivity" />
     </capability>
 </shortcuts>

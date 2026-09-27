@@ -1,4 +1,4 @@
-package eu.eikrose.sometime
+package de.eikrose.sometime
 
 import android.Manifest
 import android.app.*

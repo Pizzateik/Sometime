@@ -7,7 +7,7 @@ abstract final class AppConfig {
   static const enableSupporterPurchases = false;
 
   // Empty links do not appear as actions.
-  static const portfolioUrl = '';
+  static const portfolioUrl = 'https://eikrose.de';
   static const sourceCodeUrl = 'https://github.com/Pizzateik/Sometime';
 
   // Keep this empty until the final public policy URL exists.

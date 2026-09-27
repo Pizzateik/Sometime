@@ -1,5 +1,5 @@
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:configure="eu.eikrose.sometime.SometimeWidgetConfiguration"
+    android:configure="de.eikrose.sometime.SometimeWidgetConfiguration"
     android:initialLayout="@layout/sometime_widget"
     android:minHeight="110dp"
     android:minResizeHeight="110dp"

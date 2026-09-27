@@ -1,4 +1,4 @@
-package eu.eikrose.sometime
+package de.eikrose.sometime
 
 import android.app.Activity
 import android.app.AlarmManager

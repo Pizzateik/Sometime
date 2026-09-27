@@ -96,6 +96,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(AppConfig.sourceCodeUrl, 'https://github.com/Pizzateik/Sometime');
+    expect(AppConfig.portfolioUrl, 'https://eikrose.de');
     expect(sourceCode, findsOneWidget);
     expect(control('Source Code, external link'), findsOneWidget);
   });

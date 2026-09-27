@@ -35,7 +35,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>de.eik.todoApp.widgets</string>
+			<string>de.eikrose.sometime.widgets</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>sometime</string>

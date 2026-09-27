@@ -158,7 +158,7 @@ final class SometimeWidgetBridge {
       case "sync":
         guard let source = call.arguments as? String,
           let bytes = source.data(using: .utf8),
-          let directory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.de.eik.todoApp") else {
+          let directory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.de.eikrose.sometime") else {
           result(FlutterError(code: "storage", message: "The widget storage is not available.", details: nil))
           return
         }

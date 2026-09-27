@@ -1,0 +1,1 @@
+Erste stabile Android-Version mit Aufgaben, Spaces, Erinnerungen, Wiederholungen, Widgets, lokalem Import und Export sowie anpassbarem Design.

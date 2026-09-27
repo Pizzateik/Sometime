@@ -2,14 +2,14 @@ from pathlib import Path
 import plistlib
 root = Path(__file__).resolve().parent.parent
 ios = root / 'ios'
-group = {'com.apple.security.application-groups': ['group.de.eik.todoApp']}
+group = {'com.apple.security.application-groups': ['group.de.eikrose.sometime']}
 for entitlement_path in ['Runner/Runner.entitlements', 'SometimeWidget/SometimeWidget.entitlements']:
     (ios / entitlement_path).write_bytes(plistlib.dumps(group))
 widget_info = {'CFBundleDisplayName': 'Sometime', 'CFBundleIdentifier': '$(PRODUCT_BUNDLE_IDENTIFIER)', 'CFBundleExecutable': '$(EXECUTABLE_NAME)', 'CFBundleName': '$(PRODUCT_NAME)', 'CFBundlePackageType': 'XPC!', 'CFBundleShortVersionString': '1.0.0', 'CFBundleVersion': '1', 'NSExtension': {'NSExtensionPointIdentifier': 'com.apple.widgetkit-extension'}, 'UIAppFonts': ['Geist-Variable.ttf']}
 (ios / 'SometimeWidget/Info.plist').write_bytes(plistlib.dumps(widget_info))
 runner_info_path = ios / 'Runner/Info.plist'
 runner_info = plistlib.loads(runner_info_path.read_bytes())
-runner_info['CFBundleURLTypes'] = [{'CFBundleURLSchemes': ['sometime'], 'CFBundleURLName': 'de.eik.todoApp.widgets'}]
+runner_info['CFBundleURLTypes'] = [{'CFBundleURLSchemes': ['sometime'], 'CFBundleURLName': 'de.eikrose.sometime.widgets'}]
 runner_info['CFBundleLocalizations'] = ['de', 'en']
 runner_info_path.write_bytes(plistlib.dumps(runner_info))
 
@@ -38,14 +38,14 @@ add('PBXContainerItemProxy', f'{oid(25)} = {{isa = PBXContainerItemProxy; contai
 add('PBXTargetDependency', f'{oid(26)} = {{isa = PBXTargetDependency; target = {oid(30)}; targetProxy = {oid(25)}; }};')
 add('PBXNativeTarget', f'{oid(30)} = {{isa = PBXNativeTarget; buildConfigurationList = {oid(40)}; buildPhases = ({oid(21)}, {oid(23)}, {oid(22)}, ); buildRules = (); dependencies = (); name = SometimeWidget; productName = SometimeWidget; productReference = {oid(2)}; productType = "com.apple.product-type.app-extension"; }};')
 for n, name in [(41, 'Debug'), (42, 'Release'), (43, 'Profile')]:
-    add('XCBuildConfiguration', f'{oid(n)} = {{isa = XCBuildConfiguration; buildSettings = {{APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = SometimeWidget/SometimeWidget.entitlements; CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = SometimeWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"; PRODUCT_BUNDLE_IDENTIFIER = de.eik.todoApp.SometimeWidget; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }}; name = {name}; }};')
+    add('XCBuildConfiguration', f'{oid(n)} = {{isa = XCBuildConfiguration; buildSettings = {{APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = SometimeWidget/SometimeWidget.entitlements; CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = SometimeWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"; PRODUCT_BUNDLE_IDENTIFIER = de.eikrose.sometime.SometimeWidget; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }}; name = {name}; }};')
 add('XCConfigurationList', f'{oid(40)} = {{isa = XCConfigurationList; buildConfigurations = ({oid(41)}, {oid(42)}, {oid(43)}, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};')
 project = project.replace('97C146EE1CF9000F007C117D /* Runner.app */,', f'97C146EE1CF9000F007C117D /* Runner.app */,\n{oid(2)},')
 project = project.replace('97C146F01CF9000F007C117D /* Runner */,', f'97C146F01CF9000F007C117D /* Runner */,\n{oid(1)}, {oid(3)}, {oid(6)},')
 project = project.replace('3B06AD1E1E4923F5004D2608 /* Thin Binary */,', f'{oid(24)},\n3B06AD1E1E4923F5004D2608 /* Thin Binary */,')
 project = project.replace('dependencies = (\n\t\t\t);\n\t\t\tname = Runner;', f'dependencies = ({oid(26)}, );\n\t\t\tname = Runner;')
 project = project.replace('targets = (', f'targets = (\n{oid(30)},')
-project = project.replace('PRODUCT_BUNDLE_IDENTIFIER = de.eik.todoApp;', 'CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;\nPRODUCT_BUNDLE_IDENTIFIER = de.eik.todoApp;')
+project = project.replace('PRODUCT_BUNDLE_IDENTIFIER = de.eikrose.sometime;', 'CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;\nPRODUCT_BUNDLE_IDENTIFIER = de.eikrose.sometime;')
 project_path.write_text(project)
 english = ['Space', 'Category', 'Today', 'Soon', 'Sometime', 'All', 'Sometime widget', 'Choose a space and a category.', 'Your tasks, on this device.']
 german = ['Space', 'Kategorie', 'Heute', 'Demnächst', 'Irgendwann', 'Alle', 'Sometime-Widget', 'Wähle einen Space und eine Kategorie.', 'Deine Aufgaben auf diesem Gerät.']

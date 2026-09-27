@@ -54,11 +54,13 @@ Google Assistant App Actions require a Google Play release and review. Gemini us
 
 Sometime stores your tasks on your device. It needs no account and has no advertising, analytics, task telemetry, or cloud backend.
 
-The source code is public under the Apache License 2.0. The app name and brand assets have separate terms.
+The source code and original artwork are public under the Apache License 2.0. Trademark rights in the Sometime name and logo are separate.
+
+Developer website: [eikrose.de](https://eikrose.de).
 
 ## Download
 
-Download the current Android release candidate from [GitHub Releases](https://github.com/Pizzateik/Sometime/releases/tag/v1.0.0-rc.1). GitHub marks it as a prerelease.
+Download Sometime for Android from [GitHub Releases](https://github.com/Pizzateik/Sometime/releases).
 
 Sometime requires Android 7.0 (API 24) or later.
 
@@ -86,7 +88,7 @@ Build the F-Droid flavor without Play Billing or production signing credentials:
 flutter build apk --release --flavor fdroid
 ```
 
-This command creates a local APK. Sometime is not available through F-Droid yet.
+This command creates an unsigned APK for F-Droid to sign. For a locally installable APK, build the debug variant instead. Sometime is not available through F-Droid yet. See [F-Droid release notes](docs/fdroid.md) for the submission steps.
 
 ## Contributing
 
@@ -98,6 +100,6 @@ Report security issues privately as described in [SECURITY.md](SECURITY.md).
 
 Sometime source code uses the [Apache License 2.0](LICENSE). Copyright 2026 Eik.
 
-The Sometime name, app icon, logo, and original artwork have [separate brand terms](assets/BRAND_ASSETS_LICENSE.md). Third-party resources keep their [existing licenses](THIRD_PARTY_NOTICES.md).
+Original Sometime artwork is also Apache-2.0-licensed; [trademark details](assets/BRAND_ASSETS_LICENSE.md) and [third-party licenses](THIRD_PARTY_NOTICES.md) are documented separately.
 
 <p align="center">Made with ❤️ by Eik</p>

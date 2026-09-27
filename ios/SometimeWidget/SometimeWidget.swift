@@ -4,7 +4,7 @@ import AppIntents
 import CoreText
 
 enum WidgetStore {
-    static let group = "group.de.eik.todoApp"
+    static let group = "group.de.eikrose.sometime"
     static var data: WidgetData {
         guard let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)?.appendingPathComponent("widget.json"),
               let bytes = try? Data(contentsOf: url),

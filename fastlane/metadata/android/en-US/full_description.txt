@@ -1,0 +1,10 @@
+Sometime keeps tasks where they belong: Today, Soon, or Sometime. Add dates and times when they help, without organizing everything into projects.
+
+* Create tasks with natural dates and times.
+* Set local reminders and recurring schedules.
+* Keep different parts of life in separate Spaces.
+* View tasks in Android home screen widgets and pin important tasks as notifications.
+* Import and export your tasks.
+* Choose light, dark, Material You, or custom colors.
+
+Your tasks stay on your device. Sometime needs no account and has no ads, analytics, task telemetry, or cloud backend. The app works offline.

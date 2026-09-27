@@ -23,7 +23,7 @@ write('layout/sometime_widget_task.xml', f'''<LinearLayout {ns} android:layout_w
 for mode, color in [('light', '#FAFAF8'), ('dark', '#121212')]:
     write(f'drawable/widget_{mode}.xml', f'<shape {ns}><solid android:color="{color}"/><corners android:radius="22dp"/></shape>')
 for size, width, height, cells in [('small', 140, 180, 2), ('medium', 280, 250, 4)]:
-    write(f'xml/sometime_widget_{size}.xml', f'''<appwidget-provider {ns} android:minWidth="{width}dp" android:minHeight="{height}dp" android:targetCellWidth="{cells}" android:targetCellHeight="3" android:updatePeriodMillis="0" android:initialLayout="@layout/sometime_widget" android:resizeMode="none" android:widgetCategory="home_screen" android:configure="de.eik.todo_app.SometimeWidgetConfiguration" android:widgetFeatures="reconfigurable"/>''')
+    write(f'xml/sometime_widget_{size}.xml', f'''<appwidget-provider {ns} android:minWidth="{width}dp" android:minHeight="{height}dp" android:targetCellWidth="{cells}" android:targetCellHeight="3" android:updatePeriodMillis="0" android:initialLayout="@layout/sometime_widget" android:resizeMode="none" android:widgetCategory="home_screen" android:configure="de.eikrose.sometime.SometimeWidgetConfiguration" android:widgetFeatures="reconfigurable"/>''')
 (res / 'font').mkdir(exist_ok=True)
 shutil.copyfile(root / 'assets/fonts/Geist-Variable.ttf', res / 'font/geist.ttf')
 manifest = root / 'android/app/src/main/AndroidManifest.xml'
