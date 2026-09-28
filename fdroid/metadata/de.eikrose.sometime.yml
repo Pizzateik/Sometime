@@ -7,6 +7,7 @@ WebSite: https://eikrose.de
 SourceCode: https://github.com/Pizzateik/Sometime
 IssueTracker: https://github.com/Pizzateik/Sometime/issues
 Changelog: https://github.com/Pizzateik/Sometime/releases
+AutoName: Sometime
 RepoType: git
 Repo: https://github.com/Pizzateik/Sometime.git
 Builds:
@@ -30,7 +31,8 @@ Builds:
       - .pub-cache
     build:
       - export PUB_CACHE=$(pwd)/.pub-cache
-      - $$flutter$$/bin/flutter build apk --release --flavor fdroid --split-per-abi --target-platform="android-arm"
+      - $$flutter$$/bin/flutter build apk --release --flavor fdroid --split-per-abi
+        --target-platform="android-arm"
   - versionName: 1.0.0
     versionCode: 52
     commit: 966d8d9468820f75cd222f2d64853a890345a6bc
@@ -51,7 +53,8 @@ Builds:
       - .pub-cache
     build:
       - export PUB_CACHE=$(pwd)/.pub-cache
-      - $$flutter$$/bin/flutter build apk --release --flavor fdroid --split-per-abi --target-platform="android-arm64"
+      - $$flutter$$/bin/flutter build apk --release --flavor fdroid --split-per-abi
+        --target-platform="android-arm64"
   - versionName: 1.0.0
     versionCode: 53
     commit: 966d8d9468820f75cd222f2d64853a890345a6bc
@@ -72,13 +75,14 @@ Builds:
       - .pub-cache
     build:
       - export PUB_CACHE=$(pwd)/.pub-cache
-      - $$flutter$$/bin/flutter build apk --release --flavor fdroid --split-per-abi --target-platform="android-x64"
+      - $$flutter$$/bin/flutter build apk --release --flavor fdroid --split-per-abi
+        --target-platform="android-x64"
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
 VercodeOperation:
   - '%c * 10 + 1'
   - '%c * 10 + 2'
   - '%c * 10 + 3'
-UpdateCheckData: 'pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+'
+UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
 CurrentVersion: 1.0.0
 CurrentVersionCode: 53
