@@ -1,6 +1,7 @@
 import java.util.Properties
 import java.io.File
 import org.gradle.api.tasks.compile.JavaCompile
+import com.android.build.gradle.internal.api.ApkVariantOutputImpl
 
 plugins {
     id("com.android.application")
@@ -114,6 +115,26 @@ android {
         }
     }
 
+}
+
+val abiVersionCodes = mapOf(
+    "armeabi-v7a" to 1,
+    "arm64-v8a" to 2,
+    "x86_64" to 3,
+)
+
+android.applicationVariants.configureEach {
+    val variant = this
+    outputs.forEach { output ->
+        val abiVersionCode = output.filters
+            .firstOrNull { it.filterType == "ABI" }
+            ?.identifier
+            ?.let(abiVersionCodes::get)
+        if (abiVersionCode != null) {
+            (output as ApkVariantOutputImpl).versionCodeOverride =
+                variant.versionCode * 10 + abiVersionCode
+        }
+    }
 }
 
 if (fdroidBuild) {
