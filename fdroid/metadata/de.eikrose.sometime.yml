@@ -1,5 +1,5 @@
 Categories:
-  - Productivity
+  - Task
 License: Apache-2.0
 AuthorName: Eik
 AuthorWebSite: https://eikrose.de
@@ -7,29 +7,15 @@ WebSite: https://eikrose.de
 SourceCode: https://github.com/Pizzateik/Sometime
 IssueTracker: https://github.com/Pizzateik/Sometime/issues
 Changelog: https://github.com/Pizzateik/Sometime/releases
-Summary: Today. Soon. Sometime. A calm task list for ideas that can wait.
-Description: |-
-  Most task apps mix today's work with ideas that can wait. Sometime separates tasks by when they matter. Use Today, Soon, and Sometime without projects, tags, or a complex planning system.
-
-  * Write a task and use natural dates and times when you need them.
-  * Add local reminders and recurring schedules.
-  * Pin important tasks as Android notifications.
-  * See current tasks in Android home screen widgets.
-  * Use Spaces to separate parts of your life or work.
-  * Choose light, dark, soft, Material You, or custom colors.
-  * Import and export your tasks locally.
-  * Add tasks by voice with supported assistants.
-
-  Sometime stores your tasks on your device. It needs no account and has no advertising, analytics, task telemetry, or cloud backend. The app works offline.
 RepoType: git
 Repo: https://github.com/Pizzateik/Sometime.git
 Builds:
   - versionName: 1.0.0
-    versionCode: 5
-    commit: v1.0.0
-    output: build/app/outputs/flutter-apk/app-fdroid-release.apk
+    versionCode: 51
+    commit: 966d8d9468820f75cd222f2d64853a890345a6bc
+    output: build/app/outputs/flutter-apk/app-armeabi-v7a-fdroid-release.apk
     srclibs:
-      - flutter@3.47.2
+      - flutter@stable
     rm:
       - ios
       - linux
@@ -37,16 +23,71 @@ Builds:
       - web
       - windows
     prebuild:
+      - flutterVersion=$(sed -n 's/.*flutter.*"\([0-9.]*\)".*/\1/p' .fvmrc)
+      - '[[ $flutterVersion ]]'
+      - git -C $$flutter$$ checkout -f $flutterVersion
       - export PUB_CACHE=$(pwd)/.pub-cache
       - $$flutter$$/bin/flutter config --no-analytics
-      - $$flutter$$/bin/flutter pub get
-    scanignore:
+      - $$flutter$$/bin/flutter pub get --enforce-lockfile
+    scandelete:
       - .pub-cache
     build:
       - export PUB_CACHE=$(pwd)/.pub-cache
-      - $$flutter$$/bin/flutter build apk --release --flavor fdroid
+      - $$flutter$$/bin/flutter build apk --release --flavor fdroid --split-per-abi --target-platform="android-arm"
+  - versionName: 1.0.0
+    versionCode: 52
+    commit: 966d8d9468820f75cd222f2d64853a890345a6bc
+    output: build/app/outputs/flutter-apk/app-arm64-v8a-fdroid-release.apk
+    srclibs:
+      - flutter@stable
+    rm:
+      - ios
+      - linux
+      - macos
+      - web
+      - windows
+    prebuild:
+      - flutterVersion=$(sed -n 's/.*flutter.*"\([0-9.]*\)".*/\1/p' .fvmrc)
+      - '[[ $flutterVersion ]]'
+      - git -C $$flutter$$ checkout -f $flutterVersion
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter config --no-analytics
+      - $$flutter$$/bin/flutter pub get --enforce-lockfile
+    scandelete:
+      - .pub-cache
+    build:
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter build apk --release --flavor fdroid --split-per-abi --target-platform="android-arm64"
+  - versionName: 1.0.0
+    versionCode: 53
+    commit: 966d8d9468820f75cd222f2d64853a890345a6bc
+    output: build/app/outputs/flutter-apk/app-x86_64-fdroid-release.apk
+    srclibs:
+      - flutter@stable
+    rm:
+      - ios
+      - linux
+      - macos
+      - web
+      - windows
+    prebuild:
+      - flutterVersion=$(sed -n 's/.*flutter.*"\([0-9.]*\)".*/\1/p' .fvmrc)
+      - '[[ $flutterVersion ]]'
+      - git -C $$flutter$$ checkout -f $flutterVersion
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter config --no-analytics
+      - $$flutter$$/bin/flutter pub get --enforce-lockfile
+    scandelete:
+      - .pub-cache
+    build:
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter build apk --release --flavor fdroid --split-per-abi --target-platform="android-x64"
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
+VercodeOperation:
+  - '%c * 10 + 1'
+  - '%c * 10 + 2'
+  - '%c * 10 + 3'
 UpdateCheckData: 'pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+'
 CurrentVersion: 1.0.0
-CurrentVersionCode: 5
+CurrentVersionCode: 53
