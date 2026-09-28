@@ -18,10 +18,7 @@ Builds:
       - flutter@stable
     rm:
       - ios
-      - linux
-      - macos
       - web
-      - windows
     prebuild:
       - flutterVersion=$(sed -n 's/.*flutter.*"\([0-9.]*\)".*/\1/p' .fvmrc)
       - '[[ $flutterVersion ]]'
@@ -42,10 +39,7 @@ Builds:
       - flutter@stable
     rm:
       - ios
-      - linux
-      - macos
       - web
-      - windows
     prebuild:
       - flutterVersion=$(sed -n 's/.*flutter.*"\([0-9.]*\)".*/\1/p' .fvmrc)
       - '[[ $flutterVersion ]]'
@@ -66,10 +60,7 @@ Builds:
       - flutter@stable
     rm:
       - ios
-      - linux
-      - macos
       - web
-      - windows
     prebuild:
       - flutterVersion=$(sed -n 's/.*flutter.*"\([0-9.]*\)".*/\1/p' .fvmrc)
       - '[[ $flutterVersion ]]'
