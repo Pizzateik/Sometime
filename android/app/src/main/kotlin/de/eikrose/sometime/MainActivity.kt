@@ -13,6 +13,7 @@ class MainActivity : FlutterActivity() {
         TaskNotifications.receive(intent)
         SometimeWidgets.receive(intent)
         AssistantTasks.receive(intent)
+        AppShortcuts.receive(intent)
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -20,6 +21,7 @@ class MainActivity : FlutterActivity() {
         TaskNotifications.receive(intent)
         SometimeWidgets.receive(intent)
         AssistantTasks.receive(intent)
+        AppShortcuts.receive(intent)
     }
     override fun onResume() { super.onResume(); TaskNotifications.activity = this }
     override fun onDestroy() {

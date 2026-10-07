@@ -10,10 +10,12 @@ import 'package:flutter/material.dart';
 import '../app/app_theme.dart';
 import '../app/app_strings.dart';
 import '../services/app_haptics.dart';
+import '../services/app_shortcut_bridge.dart';
 import '../services/notification_service.dart';
 import '../services/task_pin_coordinator.dart';
 import '../services/widget_bridge.dart';
 import '../models/todo.dart';
+import '../models/task_details.dart';
 import '../models/todo_space.dart';
 import '../state/theme_controller.dart';
 import '../state/settings_controller.dart';
@@ -139,6 +141,8 @@ class _MainPagerScreenState extends State<MainPagerScreen>
     widget.todoController.addListener(_validateDragState);
     _spaceDwellProgress.addListener(_refreshTaskDragOverlay);
     WidgetBridge.target.addListener(_widgetOpened);
+    AppShortcutBridge.target.addListener(_shortcutOpened);
+    _shortcutOpened();
     WidgetsBinding.instance.addPostFrameCallback((_) => _widgetOpened());
   }
 
@@ -251,6 +255,42 @@ class _MainPagerScreenState extends State<MainPagerScreen>
     }
   }
 
+  bool _shortcutScheduled = false;
+
+  void _shortcutOpened() {
+    if (!mounted ||
+        AppShortcutBridge.target.value == null ||
+        _shortcutScheduled) {
+      return;
+    }
+    _shortcutScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _shortcutScheduled = false;
+      final shortcut = AppShortcutBridge.target.value;
+      if (!mounted || shortcut == null || !_pageController.hasClients) return;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      // A previous editor must finish closing before its replacement opens.
+      if (_composerOpen) return;
+      if ((_pageController.page ?? 0).round() >=
+          widget.todoController.spaces.length) {
+        _pageController.jumpToPage(0);
+        _shortcutOpened();
+        return;
+      }
+      AppShortcutBridge.target.value = null;
+      unawaited(
+        _addTodo(
+          initialGroup: shortcut == AppShortcut.someday
+              ? TodoGroup.someday
+              : null,
+          initialRoutine: shortcut == AppShortcut.newRoutine,
+          allowTaskTutorial: false,
+        ),
+      );
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
   void _notificationOpened() {
     final target = widget.notifications?.openTask.value;
     if (!mounted || target == null || !_pageController.hasClients) return;
@@ -297,6 +337,7 @@ class _MainPagerScreenState extends State<MainPagerScreen>
     _firstEntrance.dispose();
     _spaceDwellProgress.dispose();
     WidgetBridge.target.removeListener(_widgetOpened);
+    AppShortcutBridge.target.removeListener(_shortcutOpened);
     _deleteMagnetOffset.dispose();
     super.dispose();
   }
@@ -814,6 +855,7 @@ class _MainPagerScreenState extends State<MainPagerScreen>
 
   Future<void> _addTodo({
     TodoGroup? initialGroup,
+    bool initialRoutine = false,
     bool allowTaskTutorial = true,
   }) async {
     if (_composerOpen) return;
@@ -824,6 +866,7 @@ class _MainPagerScreenState extends State<MainPagerScreen>
     final spaceId = spaces[index].id;
     final origin = _buttonBounds();
     if (origin == null) return;
+    final now = widget.todoController.clock();
     _dismissTaskTutorial(showSpaceTutorial: false);
     final shouldShowSpaceTutorial =
         _hasNoTasks &&
@@ -840,15 +883,30 @@ class _MainPagerScreenState extends State<MainPagerScreen>
           widget.settingsController.value.morningReminderMinutes,
       resolveOrigin: _buttonBounds,
       panelTop: _panelTop(),
-      initialDraft: initialGroup == null
+      initialDraft: initialGroup == null && !initialRoutine
           ? null
-          : TodoDraft(title: '', group: initialGroup),
+          : TodoDraft(
+              title: '',
+              group: initialGroup ?? TodoGroup.today,
+              details: initialRoutine
+                  ? TaskDetails(
+                      recurrence: RecurrenceRule(
+                        type: RecurrenceType.weekly,
+                        weekdays: [now.weekday],
+                        monthDay: now.day,
+                        yearMonth: now.month,
+                        yearDay: now.day,
+                      ),
+                    )
+                  : const TaskDetails(),
+            ),
     );
     if (!mounted) return;
     setState(() {
       _composerOpen = false;
       _spaceTutorialVisible = false;
     });
+    _shortcutOpened();
     if (draft == null) return;
     final shouldMarkEmptyHint =
         _firstEmptyHomeSessionStarted && _isFirstHomeEligible && _hasNoTasks;
@@ -1690,11 +1748,12 @@ class _SpaceNavigationItem extends StatelessWidget {
       name,
       key: nameKey,
       maxLines: 1,
+      textAlign: TextAlign.center,
       overflow: TextOverflow.ellipsis,
       style: textStyle.copyWith(fontSize: activeSize * fontScale),
     );
     final hoverText = Transform.scale(
-      alignment: Alignment.centerLeft,
+      alignment: Alignment.center,
       scale: reducedMotion ? 1 : 1 + 0.02 * hoverEmphasis,
       child: text,
     );
@@ -1747,14 +1806,15 @@ class _SpaceNavigationItem extends StatelessWidget {
         height: AppSpace.touch,
         width: maxWidth,
         child: Transform(
-          origin: const Offset(0, 34),
+          // Keep the reserved slot and text baseline stable while scaling.
+          origin: Offset(maxWidth / 2, 34),
           transform: Matrix4.diagonal3Values(
             size / (activeSize * fontScale),
             size / (activeSize * fontScale),
             1,
           ),
           child: Align(
-            alignment: Alignment.topLeft,
+            alignment: Alignment.topCenter,
             child: Baseline(
               baseline: 34,
               baselineType: TextBaseline.alphabetic,

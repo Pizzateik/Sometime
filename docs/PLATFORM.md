@@ -1,6 +1,8 @@
 # Native entry points
 
-Android creates a shared Flutter engine in `SometimeApplication`. `MainActivity` forwards new intents to the widget, notification, and assistant bridges. iOS creates its shared engine in `AppDelegate.taskEngine()` and the scene uses that engine. Native requests must wait for `TodoController.initialize()` before changing tasks.
+Android creates a shared Flutter engine in `SometimeApplication`. `MainActivity` forwards new intents to the widget, notification, assistant, and launcher shortcut bridges. iOS creates its shared engine in `AppDelegate.taskEngine()` and the scene uses that engine. Native requests must wait for `TodoController.initialize()` before changing tasks.
+
+Android launcher shortcuts offer New task, New routine, and For sometime. `AppShortcuts` holds the pending editor request until `AppShortcutBridge` starts after initialization. Requests open the existing editor in the current space (the first space after a cold start or from settings), including after onboarding. New routine enables a weekly rule for the current weekday; For sometime selects the Sometime category. Saving uses the regular `TodoController` flow. Test all three from the launcher after a cold start and while the app is running.
 
 Assistant task requests are queued in Android SharedPreferences or iOS UserDefaults. `AssistantTaskBridge` drains the queue after startup and on resume, creates tasks through `TodoController`, and acknowledges each request only after task storage flushes. A request ID makes retries idempotent. The first space receives assistant tasks. An unspecified category means Soon; the saved `someday` group is shown as Sometime. Explicit date and time values and the app's natural date/time parser populate `TaskDetails`. Assistant creation does not turn on a reminder by default.
 

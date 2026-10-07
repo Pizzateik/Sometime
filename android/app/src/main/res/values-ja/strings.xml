@@ -1,4 +1,7 @@
 <resources>
+    <string name="shortcut_new_task">新しいタスク</string>
+    <string name="shortcut_new_routine">新しいルーティン</string>
+    <string name="shortcut_someday">いつかやること</string>
     <string name="widget_open_space">%1$sを開く</string>
     <string name="widget_create_task">タスクを作成</string>
     <string name="widget_today">今日</string>

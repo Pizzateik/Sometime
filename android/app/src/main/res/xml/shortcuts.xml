@@ -1,6 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+    <shortcut android:shortcutId="new_task"
+        android:icon="@drawable/ic_shortcut_add"
+        android:shortcutShortLabel="@string/shortcut_new_task">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="de.eikrose.sometime"
+            android:targetClass="de.eikrose.sometime.MainActivity">
+            <extra android:key="shortcut_action" android:value="new_task" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="new_routine"
+        android:icon="@drawable/ic_shortcut_routine"
+        android:shortcutShortLabel="@string/shortcut_new_routine">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="de.eikrose.sometime"
+            android:targetClass="de.eikrose.sometime.MainActivity">
+            <extra android:key="shortcut_action" android:value="new_routine" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="someday"
+        android:icon="@drawable/ic_shortcut_someday"
+        android:shortcutShortLabel="@string/shortcut_someday">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="de.eikrose.sometime"
+            android:targetClass="de.eikrose.sometime.MainActivity">
+            <extra android:key="shortcut_action" android:value="someday" />
+        </intent>
+    </shortcut>
     <capability android:name="actions.intent.CREATE_THING">
         <intent android:targetPackage="de.eikrose.sometime"
             android:targetClass="de.eikrose.sometime.MainActivity">

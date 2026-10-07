@@ -10,6 +10,7 @@ import '../models/theme_preference.dart';
 import '../models/app_settings.dart';
 import '../membership/membership_assets.dart';
 import '../services/app_haptics.dart';
+import '../services/app_shortcut_bridge.dart';
 import '../services/assistant_task_bridge.dart';
 import '../services/notification_service.dart';
 import '../services/widget_bridge.dart';
@@ -58,6 +59,7 @@ class _TodoAppState extends State<TodoApp> with WidgetsBindingObserver {
   NotificationService? _notifications;
   WidgetBridge? _widgets;
   AssistantTaskBridge? _assistant;
+  AppShortcutBridge? _shortcuts;
 
   @override
   void initState() {
@@ -106,6 +108,7 @@ class _TodoAppState extends State<TodoApp> with WidgetsBindingObserver {
     if (_purchases.enabled) unawaited(_purchases.initialize());
     _widgets = WidgetBridge(_todos, _settings, _theme)..start();
     _assistant = AssistantTaskBridge(_todos, _settings)..start();
+    _shortcuts = AppShortcutBridge()..start();
     if (!widget.enableNotifications) return;
     _notifications = NotificationService(_todos, _settings);
     await _notifications!.start();
@@ -125,6 +128,7 @@ class _TodoAppState extends State<TodoApp> with WidgetsBindingObserver {
       unawaited(_notifications?.resume());
       unawaited(_widgets?.resume());
       unawaited(_assistant?.resume());
+      unawaited(_shortcuts?.resume());
     }
   }
 
@@ -134,6 +138,7 @@ class _TodoAppState extends State<TodoApp> with WidgetsBindingObserver {
     _notifications?.dispose();
     _widgets?.dispose();
     _assistant?.dispose();
+    _shortcuts?.dispose();
     _todos.dispose();
     _theme.dispose();
     _settings.dispose();

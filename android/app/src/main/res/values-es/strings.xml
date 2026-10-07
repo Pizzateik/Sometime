@@ -1,4 +1,7 @@
 <resources>
+    <string name="shortcut_new_task">Nueva tarea</string>
+    <string name="shortcut_new_routine">Nueva rutina</string>
+    <string name="shortcut_someday">Para algún día</string>
     <string name="widget_open_space">Abrir %1$s</string>
     <string name="widget_create_task">Crear tarea</string>
     <string name="widget_today">HOY</string>

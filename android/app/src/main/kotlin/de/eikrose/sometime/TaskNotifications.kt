@@ -29,6 +29,7 @@ class SometimeApplication : Application() {
         TaskNotifications.attach(this, engine)
         SometimeWidgets.attach(this, engine)
         AssistantTasks.attach(this, engine)
+        AppShortcuts.attach(engine)
         engine.dartExecutor.executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault())
     }
 }
